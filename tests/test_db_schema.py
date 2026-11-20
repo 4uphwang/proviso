@@ -27,9 +27,9 @@ def test_span_validity_query(db):
                       ('T법', '1', '2020-01-01'), ('T법', '2', '2023-07-01')""")
         db.execute("""INSERT INTO article_texts (text_id, doc_id, article_no, text) VALUES
                       ('old', 'T법', '제1조', '옛 본문'), ('new', 'T법', '제1조', '새 본문')""")
-        db.execute("""INSERT INTO article_spans (chunk_id, doc_id, article_no, sort_key, text_id, mst, valid_from, valid_to) VALUES
-                      ('T법:제1조@2020-01-01', 'T법', '제1조', 100, 'old', '1', '2020-01-01', '2023-07-01'),
-                      ('T법:제1조@2023-07-01', 'T법', '제1조', 100, 'new', '2', '2023-07-01', NULL)""")
+        db.execute("""INSERT INTO article_spans (chunk_id, doc_id, article_no, sort_key, text_id, mst, version_effective_on, valid_from, valid_to) VALUES
+                      ('T법:제1조@2020-01-01', 'T법', '제1조', 100, 'old', '1', '2020-01-01', '2020-01-01', '2023-07-01'),
+                      ('T법:제1조@2023-07-01', 'T법', '제1조', 100, 'new', '2', '2023-07-01', '2023-07-01', NULL)""")
         q = """SELECT t.text FROM article_spans s JOIN article_texts t USING (text_id)
                WHERE s.doc_id = 'T법' AND s.article_no = '제1조'
                  AND s.valid_from <= %s AND (s.valid_to IS NULL OR %s < s.valid_to)"""
@@ -37,5 +37,5 @@ def test_span_validity_query(db):
         assert db.execute(q, ("2023-07-01", "2023-07-01")).fetchone()[0] == "새 본문"
         with pytest.raises(Exception):
             with db.transaction():
-                db.execute("""INSERT INTO article_spans (chunk_id, doc_id, article_no, sort_key, text_id, mst, valid_from, valid_from_basis)
-                              VALUES ('x', 'T법', '제1조', 100, 'new', '2', '2024-01-01', '추측')""")
+                db.execute("""INSERT INTO article_spans (chunk_id, doc_id, article_no, sort_key, text_id, mst, version_effective_on, valid_from, valid_from_basis)
+                              VALUES ('x', 'T법', '제1조', 100, 'new', '2', '2023-07-01', '2024-01-01', '추측')""")

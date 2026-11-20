@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import psycopg
@@ -51,15 +51,17 @@ def upsert_document(conn: psycopg.Connection, sources: Sources, version: Version
             raise ValueError(f"약칭 {alias!r}가 이미 {row[0]!r}에 연결돼 있음")
 
 
-def load_version(conn: psycopg.Connection, sources: Sources, version: Version, articles: list[Article]) -> int:
-    """한 버전의 조문을 넣는다. 반환값: 이 버전의 조문 수."""
+def load_version(conn: psycopg.Connection, sources: Sources, version: Version, articles: list[Article],
+                 status: str | None = None) -> int:
+    """한 버전(MST, 시행일)의 조문을 넣는다. 반환값: 이 버전의 조문 수."""
     upsert_document(conn, sources, version)
+    eff = version.effective_on
     conn.execute(
-        """INSERT INTO law_versions (doc_id, mst, promulgated_on, effective_on, revision_kind, title)
-           VALUES (%s, %s, %s, %s, %s, %s)
-           ON CONFLICT (doc_id, mst) DO UPDATE SET promulgated_on = EXCLUDED.promulgated_on,
-             effective_on = EXCLUDED.effective_on, revision_kind = EXCLUDED.revision_kind, title = EXCLUDED.title""",
-        (version.doc_id, version.mst, version.promulgated_on, version.effective_on, version.revision_kind, version.title),
+        """INSERT INTO law_versions (doc_id, mst, effective_on, promulgated_on, revision_kind, status, title)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)
+           ON CONFLICT (doc_id, mst, effective_on) DO UPDATE SET promulgated_on = EXCLUDED.promulgated_on,
+             revision_kind = EXCLUDED.revision_kind, status = EXCLUDED.status, title = EXCLUDED.title""",
+        (version.doc_id, version.mst, eff, version.promulgated_on, version.revision_kind, status, version.title),
     )
     with conn.cursor() as cur:
         cur.executemany(
@@ -71,29 +73,38 @@ def load_version(conn: psycopg.Connection, sources: Sources, version: Version, a
             [(a.text_id, a.doc_id, a.article_no, a.title, a.text, Jsonb(a.paragraphs), Jsonb(a.refs),
               Jsonb(a.delegations), Jsonb(a.delegated_from), a.deleted, a.kind, a.search_text) for a in articles],
         )
+        # 같은 시행일 버전이 둘이면(같은 날 시행되는 개정 두 건) 늦게 공포된 쪽을 나중에 넣어 덮어쓴다
         cur.executemany(
-            """INSERT INTO article_spans (chunk_id, doc_id, article_no, sort_key, text_id, mst, valid_from,
-                                          heading, note)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """INSERT INTO article_spans (chunk_id, doc_id, article_no, sort_key, text_id, mst, version_effective_on,
+                                          valid_from, heading, note)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                ON CONFLICT (chunk_id) DO UPDATE SET text_id = EXCLUDED.text_id, mst = EXCLUDED.mst,
+                 version_effective_on = EXCLUDED.version_effective_on,
                  heading = EXCLUDED.heading, note = EXCLUDED.note, sort_key = EXCLUDED.sort_key""",
-            [(f"{a.doc_id}:{a.article_no}@{version.effective_on.isoformat()}", a.doc_id, a.article_no, a.sort_key,
-              a.text_id, version.mst, version.effective_on, a.heading, a.note) for a in articles],
+            [(f"{a.doc_id}:{a.article_no}@{eff.isoformat()}", a.doc_id, a.article_no, a.sort_key,
+              a.text_id, version.mst, eff, eff, a.heading, a.note) for a in articles],
+        )
+        # 이 시행일에 더는 없는 조문(늦게 공포된 버전에서 빠진 조문)의 기간은 지운다
+        cur.execute(
+            """DELETE FROM article_spans WHERE doc_id = %s AND valid_from = %s AND valid_from_basis = 'version'
+                 AND NOT (article_no = ANY(%s))""",
+            (version.doc_id, eff, [a.article_no for a in articles]),
         )
     return len(articles)
 
 
 def recompute_validity(conn: psycopg.Connection, doc_id: str) -> None:
-    """버전 시행일 기준으로 valid_to를 다시 계산한다(다음 버전의 시행일, 마지막 버전은 NULL).
+    """valid_to = 이 문서에서 다음으로 시행되는 버전의 시행일(없으면 NULL).
 
-    공포 순서가 아니라 시행일 순서로 정렬한다(늦게 공포된 개정이 먼저 시행되는 경우가 있음).
+    공포 순서가 아니라 시행일 순서로 계산한다(늦게 공포된 개정이 먼저 시행되는 경우가 있음).
+    다음 버전에서 조문이 빠졌으면 그 조문의 기간도 다음 시행일에 닫힌다.
     """
     conn.execute(
-        """UPDATE article_spans s SET valid_to = nv.next_eff
-           FROM (SELECT mst, LEAD(effective_on) OVER (ORDER BY effective_on, promulgated_on, mst) AS next_eff
-                 FROM law_versions WHERE doc_id = %s) nv
-           WHERE s.doc_id = %s AND s.mst = nv.mst AND s.valid_from_basis = 'version'""",
-        (doc_id, doc_id),
+        """UPDATE article_spans s SET valid_to = (
+               SELECT min(v.effective_on) FROM law_versions v
+               WHERE v.doc_id = s.doc_id AND v.effective_on > s.valid_from)
+           WHERE s.doc_id = %s AND s.valid_from_basis = 'version'""",
+        (doc_id,),
     )
 
 
@@ -127,34 +138,52 @@ def build_delegations(conn: psycopg.Connection) -> int:
     return cur.rowcount
 
 
-def create_snapshot(conn: psycopg.Connection, current_mst: dict[str, str]) -> str:
+def create_snapshot(conn: psycopg.Connection, versions_by_doc: dict[str, list[dict]]) -> str:
     rows = conn.execute("SELECT text_id FROM article_texts ORDER BY text_id").fetchall()
     digest = hashlib.sha256("\n".join(r[0] for r in rows).encode()).hexdigest()
     snap_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + digest[:8]
     count = conn.execute("SELECT count(*) FROM article_spans").fetchone()[0]
+    latest = {
+        d: max(((v["effective"], v["mst"]) for v in vs if v.get("status") in ("현행", "시행예정")), default=None)
+        for d, vs in versions_by_doc.items()
+    }
     conn.execute(
         "INSERT INTO snapshots (snapshot_id, latest_mst, article_count, content_hash) VALUES (%s, %s, %s, %s)"
         " ON CONFLICT (snapshot_id) DO NOTHING",  # 같은 초에 같은 내용이면 같은 스냅샷
-        (snap_id, Jsonb(current_mst), count, digest),
+        (snap_id, Jsonb(latest), count, digest),
     )
     return snap_id
 
 
-def load_current(conn: psycopg.Connection, sources: Sources, raw_dir: Path, current_mst: dict[str, str]) -> dict:
-    """수집해 둔 현행 원본(data/raw/law/<MST>.json)을 파싱해 한 트랜잭션으로 적재한다."""
+def _ymd(s: str) -> date:
+    return date(int(s[:4]), int(s[4:6]), int(s[6:8]))
+
+
+def load_versions(conn: psycopg.Connection, sources: Sources, raw_dir: Path,
+                  versions_by_doc: dict[str, list[dict]]) -> dict:
+    """수집해 둔 버전 원본(data/raw/eflaw/<MST>_<시행일>.json)을 파싱해 한 트랜잭션으로 적재한다.
+
+    원본이 있는 버전만 넣는다(현행만 받았으면 현행·시행예정만). 반환값: 문서별 적재 버전 수·조문 수 등.
+    """
     names = name_index(sources)
-    loaded: dict[str, int] = {}
+    loaded: dict[str, dict] = {}
     with conn.transaction():
         # 시행령이 모법을 참조하므로 법률을 먼저 넣는다
         for src in sorted(sources.laws, key=lambda s: s.type != "act"):
-            mst = current_mst.get(src.id)
-            path = raw_body_path(raw_dir, mst) if mst else None
-            if not path or not path.exists():
-                continue
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            version, articles = parse_law(raw, src.id, mst=mst, parent_doc=src.parent, name_to_doc=names)
-            loaded[src.id] = load_version(conn, sources, version, articles)
-            recompute_validity(conn, src.id)
+            n_versions = n_rows = 0
+            for v in sorted(versions_by_doc.get(src.id, []), key=lambda v: (v["effective"], v["promulgated"], v["mst"])):
+                path = raw_body_path(raw_dir, v["mst"], v["effective"])
+                if not path.exists():
+                    continue
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                version, articles = parse_law(raw, src.id, mst=v["mst"], parent_doc=src.parent, name_to_doc=names)
+                version.effective_on = _ymd(v["effective"])  # 목록의 시행일을 기준으로 삼는다
+                n_rows += load_version(conn, sources, version, articles, status=v.get("status"))
+                n_versions += 1
+            if n_versions:
+                recompute_validity(conn, src.id)
+                loaded[src.id] = {"versions": n_versions, "article_rows": n_rows}
         delegations = build_delegations(conn)
-        snapshot_id = create_snapshot(conn, current_mst)
-    return {"articles": loaded, "delegations": delegations, "snapshot_id": snapshot_id}
+        snapshot_id = create_snapshot(conn, versions_by_doc)
+        unique_texts = conn.execute("SELECT count(*) FROM article_texts").fetchone()[0]
+    return {"docs": loaded, "delegations": delegations, "snapshot_id": snapshot_id, "unique_texts": unique_texts}

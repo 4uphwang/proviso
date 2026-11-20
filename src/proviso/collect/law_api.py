@@ -101,12 +101,23 @@ class LawApiClient:
             raise LawApiError(f"MST {mst}: 본문에 '법령' 키가 없음")
         return data
 
-    def history_html(self, query: str) -> str:
-        """법령 연혁 목록. JSON을 요청해도 HTML로만 온다(1b 단계에서 사용)."""
-        return self.history_page(query, 1)
+    def eflaw_search(self, query: str, page: int = 1) -> tuple[int, list[dict]]:
+        """시행일 법령 목록. 같은 MST가 시행일마다 따로 나온다(부칙 부분 시행 포함, 시행예정 포함).
 
-    def history_page(self, query: str, page: int) -> str:
-        """연혁 목록 한 페이지(최대 100행). 응답 HTML의 링크에 인증값이 들어 있어 가린 뒤 돌려준다."""
-        html = self._get("/lawSearch.do", {"target": "lsHistory", "type": "HTML", "query": query,
-                                           "display": 100, "page": page})
-        return html.replace(self._oc, "REDACTED")
+        반환값: (전체 건수, 이 페이지 행들)
+        """
+        data = self._get_json("/lawSearch.do", {"target": "eflaw", "query": query, "display": 100, "page": page})
+        ls = data.get("LawSearch", {})
+        rows = ls.get("law", [])
+        rows = rows if isinstance(rows, list) else [rows]
+        return int(ls.get("totalCnt") or 0), rows
+
+    def eflaw_body(self, mst: str, effective_yyyymmdd: str) -> dict:
+        """시행일 기준 본문: 그 시행일에 실제로 효력이 있는 조문.
+
+        target=law(공포 기준)는 늦게 공포된 개정을 반영하지 못하거나 아직 시행 전인 조문을 섞어 준다.
+        """
+        data = self._get_json("/lawService.do", {"target": "eflaw", "MST": mst, "efYd": effective_yyyymmdd})
+        if "법령" not in data:
+            raise LawApiError(f"MST {mst} efYd {effective_yyyymmdd}: 본문에 '법령' 키가 없음")
+        return data

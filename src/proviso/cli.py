@@ -48,34 +48,34 @@ def _collect(args: argparse.Namespace) -> int:
     from dotenv import load_dotenv
 
     from proviso.collect.law_api import LawApiAuthError, LawApiClient
-    from proviso.collect.laws import collect_current
+    from proviso.collect.laws import collect_versions
     from proviso.config import ROOT
 
     load_dotenv(ROOT / ".env")
     raw_dir, state = _paths()
     client = LawApiClient(os.environ.get("LAW_OC", ""))
     try:
-        current = collect_current(load_sources(), client, raw_dir, state)
+        versions = collect_versions(load_sources(), client, raw_dir, state, scope="all" if args.all else "current")
     except LawApiAuthError as e:
         print(f"중단: {e}")
         return 2
     finally:
         client.close()
-    print(f"현행 {len(current)}개 문서, 상태: {state.summary()}")
+    print(f"{len(versions)}개 문서, 상태: {state.summary()}")
     return 0 if "failed" not in state.summary() else 1
 
 
 def _load(args: argparse.Namespace) -> int:
     from proviso.db.connect import apply_schema, connect
-    from proviso.db.load import load_current
+    from proviso.db.load import load_versions
 
     raw_dir, state = _paths()
     with connect() as conn:
         apply_schema(conn)
-        result = load_current(conn, load_sources(), raw_dir, state.get_value("current_mst", {}))
-    for doc, n in result["articles"].items():
-        print(f"  {doc}: 조문 {n}개")
-    print(f"위임 연결 {result['delegations']}개, 스냅샷 {result['snapshot_id']}")
+        result = load_versions(conn, load_sources(), raw_dir, state.get_value("versions", {}))
+    for doc, r in result["docs"].items():
+        print(f"  {doc}: 버전 {r['versions']}개, 조문(버전별 합) {r['article_rows']}개")
+    print(f"고유 조문 {result['unique_texts']}개, 위임 연결 {result['delegations']}개, 스냅샷 {result['snapshot_id']}")
     return 0
 
 
@@ -94,7 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     init = db_sub.add_parser("init", help="스키마 적용(다시 실행해도 안전)")
     init.set_defaults(func=_db_init)
 
-    col = sub.add_parser("collect", help="현행 법령 원본 수집(API, 다시 실행하면 이어서)")
+    col = sub.add_parser("collect", help="법령 원본 수집(시행일 기준, 다시 실행하면 이어서)")
+    col.add_argument("--all", action="store_true", help="과거 버전 전체(기본: 현행·시행예정만)")
     col.set_defaults(func=_collect)
     ld = sub.add_parser("load", help="수집한 원본을 파싱해 DB에 적재")
     ld.set_defaults(func=_load)

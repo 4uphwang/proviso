@@ -4,7 +4,6 @@ import httpx
 import pytest
 
 from proviso.collect.law_api import LawApiAuthError, LawApiClient, LawApiError
-from proviso.collect.laws import collect_current, pick_current
 from proviso.collect.state import StateStore
 from proviso.config import ROOT, Sources
 
@@ -63,47 +62,63 @@ def test_client_error_not_retried():
     assert len(calls) == 1
 
 
-def test_pick_current_requires_exact_name():
-    rows = [
-        {"법령명한글": "전자금융거래법 시행령", "현행연혁코드": "현행", "법령일련번호": "2"},
-        {"법령명한글": "전자금융거래법", "현행연혁코드": "현행", "법령일련번호": "1"},
+def _eflaw_rows():
+    return [
+        {"법령명한글": "전자금융거래법", "법령일련번호": "280277", "시행일자": "20261217", "공포일자": "20251216",
+         "제개정구분명": "일부개정", "현행연혁코드": "시행예정"},
+        {"법령명한글": "전자금융거래법", "법령일련번호": "290247", "시행일자": "20261002", "공포일자": "20260929",
+         "제개정구분명": "일부개정", "현행연혁코드": "현행"},
+        {"법령명한글": "전자금융거래법", "법령일련번호": "280277", "시행일자": "20251216", "공포일자": "20251216",
+         "제개정구분명": "일부개정", "현행연혁코드": "연혁"},
+        {"법령명한글": "전자금융거래법 시행령", "법령일련번호": "285727", "시행일자": "20260428", "공포일자": "20260428",
+         "제개정구분명": "일부개정", "현행연혁코드": "현행"},
     ]
-    assert pick_current(rows, "전자금융거래법")["법령일련번호"] == "1"
-    with pytest.raises(LawApiError):
-        pick_current(rows, "없는법")
 
 
-def test_collect_resumes_without_refetch(tmp_path):
-    calls = []
+def test_version_rows_filter_and_sort():
+    from proviso.collect.laws import version_rows
+    vs = version_rows(_eflaw_rows(), "전자금융거래법")
+    assert [(v["mst"], v["effective"]) for v in vs] == [("280277", "20251216"), ("290247", "20261002"), ("280277", "20261217")]
+    old = version_rows([{**_eflaw_rows()[0], "법령명한글": "신용정보의이용및보호에관한법률"}], "신용정보의 이용 및 보호에 관한 법률")
+    assert len(old) == 1  # 옛 법령명의 띄어쓰기 차이는 무시
 
+
+def _handler(calls, fail_body=None):
     def handler(req):
-        calls.append(req.url.path)
+        calls.append(req.url.path + "?" + req.url.params.get("target", "") + req.url.params.get("page", ""))
         if req.url.path.endswith("lawSearch.do"):
-            return httpx.Response(200, json=SEARCH)
+            page = int(req.url.params.get("page", "1"))
+            rows = _eflaw_rows()[:2] if page == 1 else _eflaw_rows()[2:]  # 2페이지에 나눠 응답
+            return httpx.Response(200, json={"LawSearch": {"totalCnt": "4", "law": rows}})
+        if fail_body and fail_body["on"]:
+            return httpx.Response(500)
         return httpx.Response(200, json=BODY)
+    return handler
 
-    sources = Sources.model_validate({"laws": [{"id": "전자금융거래법", "type": "act", "query": "전자금융거래법"}]})
+
+SRC = Sources.model_validate({"laws": [{"id": "전자금융거래법", "type": "act", "query": "전자금융거래법"}]})
+
+
+def test_collect_current_scope_pages_and_resumes(tmp_path):
+    from proviso.collect.laws import collect_versions
+    calls = []
     state_path = tmp_path / "state.json"
-    current = collect_current(sources, client(handler), tmp_path / "raw", StateStore(state_path), log=lambda m: None)
-    assert current == {"전자금융거래법": "290247"} and len(calls) == 2
-    assert (tmp_path / "raw" / "law" / "290247.json").exists()
-    # 새 프로세스처럼 상태 파일을 다시 읽어도 네트워크를 다시 부르지 않는다
-    collect_current(sources, client(handler), tmp_path / "raw", StateStore(state_path), log=lambda m: None)
-    assert len(calls) == 2
+    vs = collect_versions(SRC, client(_handler(calls)), tmp_path / "raw", StateStore(state_path), log=lambda m: None)
+    assert len(vs["전자금융거래법"]) == 3
+    bodies = sorted(p.name for p in (tmp_path / "raw" / "eflaw").iterdir())
+    assert bodies == ["280277_20261217.json", "290247_20261002.json"]  # 현행 + 시행예정만
+    n = len(calls)
+    collect_versions(SRC, client(_handler(calls)), tmp_path / "raw", StateStore(state_path), log=lambda m: None)
+    assert all("lawService" not in c for c in calls[n:])  # 다시 실행하면 본문은 다시 받지 않음(목록만 갱신)
 
 
-def test_failure_recorded_and_retried_next_run(tmp_path):
+def test_collect_all_and_retry_failed(tmp_path):
+    from proviso.collect.laws import collect_versions
     fail = {"on": True}
-
-    def handler(req):
-        if req.url.path.endswith("lawSearch.do"):
-            return httpx.Response(200, json=SEARCH)
-        return httpx.Response(500) if fail["on"] else httpx.Response(200, json=BODY)
-
-    sources = Sources.model_validate({"laws": [{"id": "전자금융거래법", "type": "act", "query": "전자금융거래법"}]})
     state = StateStore(tmp_path / "state.json")
-    collect_current(sources, client(handler, max_attempts=2), tmp_path / "raw", state, log=lambda m: None)
-    assert state.status("body:290247") == "failed"
+    collect_versions(SRC, client(_handler([], fail), max_attempts=2), tmp_path / "raw", state, scope="all", log=lambda m: None)
+    assert state.status("body:280277_20251216") == "failed"
     fail["on"] = False
-    collect_current(sources, client(handler), tmp_path / "raw", state, log=lambda m: None)
-    assert state.status("body:290247") == "done"
+    collect_versions(SRC, client(_handler([], fail)), tmp_path / "raw", state, scope="all", log=lambda m: None)
+    assert state.status("body:280277_20251216") == "done"
+    assert len(list((tmp_path / "raw" / "eflaw").iterdir())) == 3

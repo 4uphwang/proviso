@@ -20,16 +20,18 @@ CREATE TABLE IF NOT EXISTS law_aliases (
   origin text NOT NULL CHECK (origin IN ('api', 'manual'))
 );
 
--- 법령의 버전 하나(공포·시행 단위)
+-- 법령의 버전 하나 = (개정 MST, 시행일). 시행일 법령 목록(eflaw) 기준이라
+-- 부칙 부분 시행이 있으면 같은 MST가 시행일마다 따로 들어온다.
 CREATE TABLE IF NOT EXISTS law_versions (
   doc_id         text NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
-  mst            text NOT NULL,              -- 법령일련번호(버전 고유 번호)
-  promulgated_on date,                       -- 공포일
+  mst            text NOT NULL,              -- 법령일련번호(개정 고유 번호)
   effective_on   date NOT NULL,              -- 시행일
+  promulgated_on date,                       -- 공포일
   revision_kind  text,                       -- 제정, 일부개정, 전부개정, 타법개정 ...
+  status         text,                       -- 현행 / 시행예정 / 연혁(수집 시점 기준)
   title          text,                       -- 이 버전의 공식 명칭(제명 변경 대비)
   collected_at   timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (doc_id, mst)
+  PRIMARY KEY (doc_id, mst, effective_on)
 );
 CREATE INDEX IF NOT EXISTS law_versions_effective ON law_versions (doc_id, effective_on);
 
@@ -51,20 +53,21 @@ CREATE TABLE IF NOT EXISTS article_texts (
 
 -- 조문이 유효한 기간. 시점 질의는 valid_from <= as_of < valid_to(NULL이면 무기한)로 거른다.
 CREATE TABLE IF NOT EXISTS article_spans (
-  chunk_id      text PRIMARY KEY,            -- '<doc_id>:<article_no>@<valid_from>'
+  chunk_id      text PRIMARY KEY,            -- '<doc_id>:<article_no>@<valid_from>' (예: '전자금융거래법:제2조@2026-10-02')
   doc_id        text NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
   article_no    text NOT NULL,
   sort_key      integer NOT NULL,            -- 조 번호 * 100 + 가지 번호
   text_id       text NOT NULL REFERENCES article_texts(text_id),
-  mst           text NOT NULL,               -- 이 기간을 만든 버전
+  mst           text NOT NULL,               -- 이 기간을 만든 버전(같은 시행일 버전이 둘이면 늦게 공포된 쪽)
+  version_effective_on date NOT NULL,        -- 그 버전의 시행일(보정 전 valid_from)
   valid_from    date NOT NULL,
   valid_to      date,
   valid_from_basis text NOT NULL DEFAULT 'version'
-    CHECK (valid_from_basis IN ('version', 'addendum')),  -- 'addendum' = 부칙을 근거로 추정한 유효 기간
+    CHECK (valid_from_basis IN ('version', 'addendum')),  -- 'version' = 시행일 법령 API, 'addendum' = 부칙을 근거로 직접 추정
   addendum_ref  text,                        -- 보정 근거 부칙 조항
   heading       text,                        -- 이 버전에서 속한 장·절 제목
   note          text,                        -- 조문참고자료(예: [본조신설 …], [시행일: …])
-  FOREIGN KEY (doc_id, mst) REFERENCES law_versions(doc_id, mst)
+  FOREIGN KEY (doc_id, mst, version_effective_on) REFERENCES law_versions(doc_id, mst, effective_on)
 );
 CREATE INDEX IF NOT EXISTS article_spans_lookup ON article_spans (doc_id, article_no, valid_from);
 CREATE INDEX IF NOT EXISTS article_spans_text ON article_spans (text_id);
