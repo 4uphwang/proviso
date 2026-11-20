@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS law_versions (
   promulgated_on date,                       -- 공포일
   effective_on   date NOT NULL,              -- 시행일
   revision_kind  text,                       -- 제정, 일부개정, 전부개정, 타법개정 ...
+  title          text,                       -- 이 버전의 공식 명칭(제명 변경 대비)
   collected_at   timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (doc_id, mst)
 );
@@ -40,7 +41,10 @@ CREATE TABLE IF NOT EXISTS article_texts (
   article_title text,
   text          text NOT NULL,               -- 원문(변형 금지)
   paragraphs    jsonb NOT NULL DEFAULT '[]', -- [{"no": 1, "text": "...", "items": [{"no": "1", "text": "..."}]}]
-  refs          jsonb NOT NULL DEFAULT '[]'  -- [{"doc_id": null|"...", "article": "제5조", "paragraph": 1}]
+  refs          jsonb NOT NULL DEFAULT '[]', -- [{"doc_id": null|"...", "law_name": ..., "article": "제5조", "paragraph": 1, "item": "3"}]
+  delegation_phrases jsonb NOT NULL DEFAULT '[]', -- 법률: "대통령령으로 정하는 …" 위치 [{"paragraph", "item", "subitem", "phrase"}]
+  delegated_from jsonb NOT NULL DEFAULT '[]', -- 시행령: '법 제N조…에서 "대통령령으로 정하는 …"'로 밝힌 위임 조항
+  deleted       boolean NOT NULL DEFAULT false  -- "제N조 삭제 <날짜>"
 );
 
 -- 조문이 유효한 기간. 시점 질의는 valid_from <= as_of < valid_to(NULL이면 무기한)로 거른다.
@@ -56,6 +60,8 @@ CREATE TABLE IF NOT EXISTS article_spans (
   valid_from_basis text NOT NULL DEFAULT 'version'
     CHECK (valid_from_basis IN ('version', 'addendum')),  -- 'addendum' = 부칙을 근거로 추정한 유효 기간
   addendum_ref  text,                        -- 보정 근거 부칙 조항
+  heading       text,                        -- 이 버전에서 속한 장·절 제목
+  note          text,                        -- 조문참고자료(예: [본조신설 …], [시행일: …])
   FOREIGN KEY (doc_id, mst) REFERENCES law_versions(doc_id, mst)
 );
 CREATE INDEX IF NOT EXISTS article_spans_lookup ON article_spans (doc_id, article_no, valid_from);
@@ -66,6 +72,7 @@ CREATE TABLE IF NOT EXISTS delegations (
   from_text_id text NOT NULL REFERENCES article_texts(text_id) ON DELETE CASCADE,
   to_text_id   text NOT NULL REFERENCES article_texts(text_id) ON DELETE CASCADE,
   phrase       text NOT NULL,                -- 근거 문구
+  source       text NOT NULL DEFAULT 'parsed' CHECK (source IN ('parsed', 'api')),  -- 파싱으로 찾음 / 위임법령 API
   PRIMARY KEY (from_text_id, to_text_id)
 );
 
