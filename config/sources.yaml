@@ -1,0 +1,41 @@
+# 수집 대상. id는 평가셋 gold.doc_id와 같아야 한다.
+# 출처: 법제처 국가법령정보센터(Open API). 답변·README에 출처를 표기한다.
+laws:
+  - id: 전자금융거래법
+    type: act
+    query: 전자금융거래법
+    aliases: [전금법]
+  - id: 전자금융거래법 시행령
+    type: decree
+    parent: 전자금융거래법
+    query: 전자금융거래법 시행령
+  - id: 자본시장법
+    type: act
+    query: 자본시장과 금융투자업에 관한 법률
+    aliases: [자본시장과 금융투자업에 관한 법률, 자통법]
+  - id: 자본시장법 시행령
+    type: decree
+    parent: 자본시장법
+    query: 자본시장과 금융투자업에 관한 법률 시행령
+  - id: 금융소비자보호법
+    type: act
+    query: 금융소비자 보호에 관한 법률
+    aliases: [금융소비자 보호에 관한 법률, 금소법]
+  - id: 금융소비자보호법 시행령
+    type: decree
+    parent: 금융소비자보호법
+    query: 금융소비자 보호에 관한 법률 시행령
+  - id: 신용정보법
+    type: act
+    query: 신용정보의 이용 및 보호에 관한 법률
+    aliases: [신용정보의 이용 및 보호에 관한 법률, 신정법]
+  - id: 신용정보법 시행령
+    type: decree
+    parent: 신용정보법
+    query: 신용정보의 이용 및 보호에 관한 법률 시행령
+
+# 공개 약관. 원문은 커밋하지 않는다(docs/legal-review.md). 출처를 직접 확인한 URL만 넣는다.
+# - id: 전자금융거래 기본약관(표준약관)
+#   url: https://...
+#   title: 전자금융거래 기본약관
+terms: []
