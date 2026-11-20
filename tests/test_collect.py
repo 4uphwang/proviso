@@ -122,3 +122,12 @@ def test_collect_all_and_retry_failed(tmp_path):
     collect_versions(SRC, client(_handler([], fail)), tmp_path / "raw", state, scope="all", log=lambda m: None)
     assert state.status("body:280277_20251216") == "done"
     assert len(list((tmp_path / "raw" / "eflaw").iterdir())) == 3
+
+
+def test_response_echoing_oc_is_redacted():
+    def handler(req):
+        return httpx.Response(200, json={"LawSearch": {"totalCnt": "1", "law": [
+            {"법령상세링크": f"/DRF/lawService.do?OC={SECRET}&target=law&MST=1"}]}})
+
+    _, rows = client(handler).eflaw_search("x")
+    assert SECRET not in json.dumps(rows) and "OC=REDACTED" in rows[0]["법령상세링크"]

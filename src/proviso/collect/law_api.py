@@ -71,7 +71,8 @@ class LawApiClient:
                         raise LawApiAuthError(
                             "API가 접속을 거절함. .env의 LAW_OC와 open.law.go.kr 마이페이지의 등록 IP를 확인"
                         )
-                    return resp.text
+                    # 응답 안의 링크(법령상세링크 등)에 인증값이 그대로 들어 있으므로 돌려주기 전에 가린다
+                    return resp.text.replace(self._oc, "REDACTED")
                 last_err = f"HTTP {resp.status_code}"
                 if resp.status_code < 500 and resp.status_code != 429:
                     break
