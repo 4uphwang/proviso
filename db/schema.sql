@@ -37,9 +37,11 @@ CREATE INDEX IF NOT EXISTS law_versions_effective ON law_versions (doc_id, effec
 CREATE TABLE IF NOT EXISTS article_texts (
   text_id       text PRIMARY KEY,            -- sha256(doc_id + 조 번호 + 원문)
   doc_id        text NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
-  article_no    text NOT NULL,               -- '제7조의2'
+  article_no    text NOT NULL,               -- '제7조의2', 별표는 '별표 1', '별표 1의2'
+  kind          text NOT NULL DEFAULT 'article' CHECK (kind IN ('article', 'appendix')),
   article_title text,
   text          text NOT NULL,               -- 원문(변형 금지)
+  search_text   text,                        -- 색인용 파생 텍스트(별표: 표 테두리 제거). NULL이면 text 사용
   paragraphs    jsonb NOT NULL DEFAULT '[]', -- [{"no": 1, "text": "...", "items": [{"no": "1", "text": "..."}]}]
   refs          jsonb NOT NULL DEFAULT '[]', -- [{"doc_id": null|"...", "law_name": ..., "article": "제5조", "paragraph": 1, "item": "3"}]
   delegation_phrases jsonb NOT NULL DEFAULT '[]', -- 법률: "대통령령으로 정하는 …" 위치 [{"paragraph", "item", "subitem", "phrase"}]

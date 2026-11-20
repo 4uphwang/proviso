@@ -64,12 +64,12 @@ def load_version(conn: psycopg.Connection, sources: Sources, version: Version, a
     with conn.cursor() as cur:
         cur.executemany(
             """INSERT INTO article_texts (text_id, doc_id, article_no, article_title, text, paragraphs, refs,
-                                          delegation_phrases, delegated_from, deleted)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                          delegation_phrases, delegated_from, deleted, kind, search_text)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                ON CONFLICT (text_id) DO UPDATE SET refs = EXCLUDED.refs, delegated_from = EXCLUDED.delegated_from,
                  delegation_phrases = EXCLUDED.delegation_phrases, paragraphs = EXCLUDED.paragraphs""",
             [(a.text_id, a.doc_id, a.article_no, a.title, a.text, Jsonb(a.paragraphs), Jsonb(a.refs),
-              Jsonb(a.delegations), Jsonb(a.delegated_from), a.deleted) for a in articles],
+              Jsonb(a.delegations), Jsonb(a.delegated_from), a.deleted, a.kind, a.search_text) for a in articles],
         )
         cur.executemany(
             """INSERT INTO article_spans (chunk_id, doc_id, article_no, sort_key, text_id, mst, valid_from,

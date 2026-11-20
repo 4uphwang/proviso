@@ -29,9 +29,9 @@ def test_load_is_idempotent_and_links_delegations(db, raw_dir):
     with db.transaction(force_rollback=True):
         r1 = load_current(db, SOURCES, raw_dir, CURRENT)
         r2 = load_current(db, SOURCES, raw_dir, CURRENT)
-        assert r1["articles"] == r2["articles"] == {"전자금융거래법": 5, "전자금융거래법 시행령": 5}  # 법률 쪽 6단위 중 1개는 장 제목
+        assert r1["articles"] == r2["articles"] == {"전자금융거래법": 5, "전자금융거래법 시행령": 7}  # 법률 6단위 중 1개는 장 제목, 시행령 5조 + 별표 2
         n = db.execute("SELECT count(*) FROM article_spans WHERE doc_id LIKE '전자금융거래법%'").fetchone()[0]
-        assert n == 10  # 두 번 넣어도 늘지 않음
+        assert n == 12  # 두 번 넣어도 늘지 않음
         assert db.execute("SELECT doc_id FROM law_aliases WHERE alias = '전금법'").fetchone()[0] == "전자금융거래법"
         # 시행령 제5조 "법 제3조제1항 단서에서 대통령령이 정하는 경우" → 법 제3조
         rows = db.execute(

@@ -107,3 +107,27 @@ def test_delegated_from_quoted_pattern(decree):
     assert {"doc_id": "전자금융거래법", "article": "제3조", "paragraph": 1, "item": None} in d5
     d4 = by_no(decree[1], "제4조").delegated_from
     assert d4 and d4[0]["article"] == "제2조" and d4[0]["item"] == "15"
+
+
+def test_appendices_parsed_as_units(decree):
+    apps = [a for a in decree[1] if a.kind == "appendix"]
+    assert [a.article_no for a in apps] == ["별표 1", "별표 1의2"]
+    first = apps[0]
+    assert first.sort_key > max(a.sort_key for a in decree[1] if a.kind == "article")
+    assert first.text.startswith("■ 전자금융거래법 시행령 [별표 1]")  # 원문 유지
+    assert first.title.startswith("정보보호최고책임자의 자격")
+    # 제목의 "(제11조의4제4항 관련)"이 시행령 조문 참조로 잡힌다
+    assert {"doc_id": "전자금융거래법 시행령", "law_name": None, "article": "제11조의4", "paragraph": 4, "item": None} in first.refs
+
+
+def test_flatten_table_removes_box_chars():
+    from proviso.parse.articles import flatten_table
+    out = flatten_table("┏━━┯━━┓\n┃인가 │500 ┃\n┗━━┷━━┛")
+    assert out == "인가 500"
+
+
+def test_article_refers_to_appendix():
+    refs = extract_refs("자격요건은 별표 1의2와 같다. 「은행법 시행령」 별표 3", self_doc="A", self_article="제11조",
+                        parent_doc=None, name_to_doc={})
+    got = [(r["doc_id"], r["article"]) for r in refs]
+    assert ("A", "별표 1의2") in got and (None, "별표 3") in got

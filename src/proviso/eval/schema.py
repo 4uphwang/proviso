@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-ARTICLE_RE = re.compile(r"^제\d+조(의\d+)?$")
+ARTICLE_RE = re.compile(r"^(제\d+조(의\d+)?|별표 \d+(의\d+)?)$")
 
 Category = Literal["lookup", "definition", "cross_ref", "multi", "terms", "temporal", "unanswerable"]
 RefusalReason = Literal["out_of_corpus", "individual_case", "investment_advice"]
@@ -24,7 +24,7 @@ class Gold(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     doc_id: str
-    article: str  # '제2조', '제7조의2'
+    article: str  # '제2조', '제7조의2', '별표 1', '별표 1의2'
     paragraph: int | None = Field(default=None, ge=1)  # 항(①=1)
     item: str | None = None  # 호('10', '3의2')
     valid_from: date | None = None  # 시점 문항: 그 시점에 유효한 조문의 시작일
@@ -32,7 +32,7 @@ class Gold(BaseModel):
     @model_validator(mode="after")
     def _check(self) -> "Gold":
         if not ARTICLE_RE.match(self.article):
-            raise ValueError(f"조 번호 형식이 아님: {self.article!r} (예: '제2조', '제7조의2')")
+            raise ValueError(f"조 번호 형식이 아님: {self.article!r} (예: '제2조', '제7조의2', '별표 1')")
         return self
 
 

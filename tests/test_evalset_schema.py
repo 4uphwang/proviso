@@ -23,14 +23,15 @@ def test_valid_item():
     assert item().gold[0].article == "제2조"
 
 
-@pytest.mark.parametrize("article", ["2조", "제2", "제2조의", "제 2조"])
+@pytest.mark.parametrize("article", ["2조", "제2", "제2조의", "제 2조", "별표1", "별표 "])
 def test_bad_article_format(article):
     with pytest.raises(ValidationError, match="조 번호"):
         item(gold=[{"doc_id": "전자금융거래법", "article": article}])
 
 
-def test_branch_article_ok():
-    assert item(gold=[{"doc_id": "전자금융거래법", "article": "제7조의2"}])
+@pytest.mark.parametrize("article", ["제7조의2", "별표 1", "별표 1의2"])
+def test_branch_and_appendix_ok(article):
+    assert item(gold=[{"doc_id": "전자금융거래법", "article": article}])
 
 
 def test_answerable_needs_gold():

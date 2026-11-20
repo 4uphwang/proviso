@@ -10,11 +10,13 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import date
 
-from proviso.parse.refs import extract_delegated_from, extract_refs, find_delegations
+from proviso.parse.refs import appendix_no, extract_delegated_from, extract_refs, find_delegations
 
 CIRCLED = {chr(0x2460 + i): i + 1 for i in range(20)}  # ①~⑳
 CIRCLED.update({chr(0x3251 + i): i + 21 for i in range(15)})  # ㉑~㉟
 DELETED_RE = re.compile(r"^제\d+조(의\d+)?\s*삭제")
+BOX_CHARS_RE = re.compile(r"[\u2500-\u257F]+")  # ┏━┯┃│┠─┼ 등 표 테두리
+APPENDIX_SORT_BASE = 1_000_000  # 별표는 조문 뒤에 정렬
 
 
 @dataclass
@@ -40,6 +42,8 @@ class Article:
     heading: str | None  # 속한 장·절 제목
     note: str | None  # 조문참고자료(예: [본조신설 …], [시행일: …])
     deleted: bool
+    kind: str = "article"  # 'article' | 'appendix'(별표)
+    search_text: str | None = None  # 색인용 파생 텍스트(별표: 테두리 문자 제거). 원문은 text
     refs: list[dict] = field(default_factory=list)
     delegations: list[dict] = field(default_factory=list)  # 법률: 위임 문구 위치
     delegated_from: list[dict] = field(default_factory=list)  # 시행령: 위임한 법 조항
@@ -99,6 +103,42 @@ def _paragraphs(unit: dict) -> tuple[list[dict], list[str]]:
     return paras, lines
 
 
+def _flatten_lines(x) -> list[str]:
+    if isinstance(x, str):
+        return x.split("\n")
+    out: list[str] = []
+    for y in x or []:
+        out.extend(_flatten_lines(y))
+    return out
+
+
+def flatten_table(text: str) -> str:
+    """별표의 표 테두리 문자를 지우고 공백을 줄여 검색용 텍스트를 만든다(원문은 따로 보관)."""
+    lines = [re.sub(r"\s+", " ", BOX_CHARS_RE.sub(" ", ln)).strip() for ln in text.split("\n")]
+    return "\n".join(ln for ln in lines if ln)
+
+
+def parse_appendices(law: dict, doc_id: str, *, parent_doc: str | None, name_to_doc: dict[str, str]) -> list[Article]:
+    """본문 JSON의 '별표' 필드(별표구분='별표')를 조문과 같은 단위의 레코드로 만든다. 서식은 뺀다."""
+    out: list[Article] = []
+    for u in _as_list((law.get("별표") or {}).get("별표단위")):
+        if (u.get("별표구분") or "별표") != "별표":
+            continue
+        no = appendix_no(u.get("별표번호") or "0", u.get("별표가지번호"))
+        text = "\n".join(ln.rstrip() for ln in _flatten_lines(u.get("별표내용"))).strip("\n")
+        n = int(u.get("별표번호") or 0)
+        b = int(u["별표가지번호"]) if (u.get("별표가지번호") or "").strip().isdigit() else 0
+        art = Article(
+            doc_id=doc_id, article_no=no, sort_key=APPENDIX_SORT_BASE + n * 100 + b,
+            title=_clean(u.get("별표제목")) or None, text=text, paragraphs=[], heading=None,
+            note=None, deleted=False, kind="appendix", search_text=flatten_table(text),
+        )
+        art.refs = extract_refs(f"{art.title or ''}\n{text}", self_doc=doc_id, self_article=no,
+                                parent_doc=parent_doc, name_to_doc=name_to_doc)
+        out.append(art)
+    return out
+
+
 def parse_law(raw: dict, doc_id: str, *, mst: str, parent_doc: str | None, name_to_doc: dict[str, str]) -> tuple[Version, list[Article]]:
     law = raw["법령"]
     info = law["기본정보"]
@@ -141,4 +181,5 @@ def parse_law(raw: dict, doc_id: str, *, mst: str, parent_doc: str | None, name_
         art.delegations = [] if art.deleted or parent_doc else find_delegations(paras, content)
         art.delegated_from = extract_delegated_from(text, parent_doc) if parent_doc and not art.deleted else []
         articles.append(art)
+    articles.extend(parse_appendices(law, doc_id, parent_doc=parent_doc, name_to_doc=name_to_doc))
     return version, articles

@@ -14,6 +14,7 @@ REF_RE = re.compile(
     r"(?:\s*제(?P<item>\d+)호(?:의(?P<itembr>\d+))?)?"
 )
 LAW_NAME_RE = re.compile(r"「(?P<law>[^」]+)」")
+APPENDIX_REF_RE = re.compile(r"(?:「(?P<law>[^」]+)」\s*)?(?<![가-힣])별표\s*(?P<no>\d+)(?:의(?P<br>\d+))?")
 DELEGATION_RE = re.compile(r"대통령령(?:으로|이)\s*정(?:하는|한다|하여|할|한)")
 # 시행령이 위임받은 조항을 밝히는 전형적인 문형: 법 제N조제M항제K호(…)에서 "대통령령으로 정하는 …"이란
 DELEGATED_FROM_RE = re.compile(
@@ -75,7 +76,24 @@ def extract_refs(
         if key not in seen:
             seen.add(key)
             out.append(ref)
+    for m in APPENDIX_REF_RE.finditer(text):  # "별표 1", "「…」 별표 2의2"
+        law_name = m.group("law")
+        doc_id = name_to_doc.get(law_name) if law_name else self_doc
+        article = appendix_no(m.group("no"), m.group("br"))
+        ref = {"doc_id": doc_id, "law_name": law_name if doc_id is None else None,
+               "article": article, "paragraph": None, "item": None}
+        key = tuple(ref.values())
+        if article != self_article and key not in seen:
+            seen.add(key)
+            out.append(ref)
     return out
+
+
+def appendix_no(no: str, branch: str | None = None) -> str:
+    """'별표 1', '별표 1의2'. 별표번호 '0001', 가지번호 '02' 같은 0 채움도 받는다."""
+    n = int(no)
+    b = int(branch) if branch and branch.strip().isdigit() else 0
+    return f"별표 {n}" + (f"의{b}" if b else "")
 
 
 def find_delegations(paragraphs: list[dict], header: str) -> list[dict]:
