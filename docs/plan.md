@@ -172,6 +172,7 @@ proviso/
 | `article_spans` | 조문이 유효한 기간: (법령, 조 번호, 본문, `valid_from`, `valid_to`, 근거 버전, 보정 출처) | `chunk_id` = `<doc_id>:<조번호>@<valid_from>` |
 | `delegations` | 법 조문 → 시행령 조문 위임 연결(근거 문구 포함) | `(from_chunk, to_chunk)` |
 | `law_aliases` | 약칭 → `doc_id`("금소법" → `금융소비자보호법`) | `alias` |
+| `index_versions` | 색인 버전(임베딩 모델, 청킹·머리말·파서 설정 해시, 만든 시각, 검증 결과)과 활성 여부. blue-green 교체 포인터 | `index_id` |
 | `snapshots` | 수집 스냅샷(시각, 문서별 최신 MST, 조문 수, 해시). 평가 결과가 이 ID를 기록 | `snapshot_id` |
 | `emb_<모델>` | 모델별 임베딩(차원이 달라 테이블 분리), HNSW 인덱스. 고유 본문만 임베딩 | `text_id` |
 | `traces` | 요청 하나: 질문, 설정, 답변, 거절 여부, 총 지연·토큰·비용 | `trace_id` |
