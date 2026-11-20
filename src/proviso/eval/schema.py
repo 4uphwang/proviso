@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 ARTICLE_RE = re.compile(r"^(제\d+조(의\d+)?|별표 \d+(의\d+)?)$")
 
 Category = Literal["lookup", "definition", "cross_ref", "multi", "terms", "temporal", "unanswerable"]
+QueryStyle = Literal["keyword", "casual", "full"]  # 키워드 나열 / 짧은 구어 / 완결 문장
 RefusalReason = Literal["out_of_corpus", "individual_case", "investment_advice"]
 
 
@@ -51,6 +52,7 @@ class EvalItem(BaseModel):
     must_include: list[str] = []
     tags: list[str] = []  # '위임', '부칙' 등
     difficulty: Literal["easy", "medium", "hard"] = "medium"
+    style: QueryStyle | None = None  # 질문 형태. 형태별 점수를 따로 내려고 둔다
     origin: Literal["auto", "ai_verified", "human"]
     lexical_overlap: float | None = Field(default=None, ge=0, le=1)
     notes: str = ""

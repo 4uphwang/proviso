@@ -25,7 +25,12 @@ def lexical_overlap(question: str, gold_text: str) -> float:
     return round(len(q & bigrams(gold_text)) / len(q), 3) if q else 0.0
 
 
-def to_item(t: dict, w: dict) -> EvalItem:
+# 형태별 길이 범위(GUIDELINES.md '질문 형태')
+STYLE_LEN = {"keyword": (6, 30), "casual": (8, 40), "full": (15, 120)}
+ENDING_RE = re.compile(r"(\?|요|까|죠|나요|니)\s*$")  # 키워드형에 붙으면 안 되는 문장 끝
+
+
+def to_item(t: dict, w: dict, style: dict | None = None) -> EvalItem:
     cat = t["category"]
     gold = [{"doc_id": t["doc_id"], "article": t["article_no"]}]
     tags: list[str] = []
@@ -44,6 +49,8 @@ def to_item(t: dict, w: dict) -> EvalItem:
         tags.append("별표")
     if w.get("law_named"):
         tags.append("법령명")
+    if style and style.get("noisy"):
+        tags.append("오타")
     gold_text = t.get("item_text") or t["text"]
     return EvalItem.model_validate({
         "id": t["id"],
@@ -56,6 +63,7 @@ def to_item(t: dict, w: dict) -> EvalItem:
         "as_of": as_of,
         "tags": tags,
         "difficulty": w.get("difficulty") or "medium",
+        "style": (style or {}).get("style"),
         "origin": "auto",
         "lexical_overlap": lexical_overlap(w["question"], gold_text),
         "notes": ("Claude 작성. " + (w.get("notes") or "")).strip(),
@@ -64,6 +72,8 @@ def to_item(t: dict, w: dict) -> EvalItem:
 
 def build(work_dir: Path, out_path: Path) -> dict:
     targets = {t["id"]: t for t in json.loads((work_dir / "targets.json").read_text(encoding="utf-8"))}
+    styles_path = work_dir / "styles.json"
+    styles = json.loads(styles_path.read_text(encoding="utf-8")) if styles_path.exists() else {}
     written: dict[str, dict] = {}
     problems: list[str] = []
     for f in sorted(work_dir.glob("out_*.jsonl")):
@@ -75,7 +85,8 @@ def build(work_dir: Path, out_path: Path) -> dict:
             except json.JSONDecodeError:
                 problems.append(f"{f.name}:{n} JSON 오류")
                 continue
-            if w.get("id") in written and not f.name.startswith("out_fix"):  # out_fix_*는 고쳐 쓴 문항이라 덮어쓴다
+            # out_fix_*(고쳐 쓴 문항), out_style_*(형태를 바꿔 쓴 문항)는 앞의 답을 덮어쓴다
+            if w.get("id") in written and not f.name.startswith(("out_fix", "out_style")):
                 problems.append(f"{f.name}:{n} id 중복 {w.get('id')}")
             written[w.get("id")] = w
     missing = sorted(set(targets) - set(written))
@@ -90,7 +101,7 @@ def build(work_dir: Path, out_path: Path) -> dict:
             skipped.append((tid, w.get("skip")))
             continue
         try:
-            item = to_item(targets[tid], w)
+            item = to_item(targets[tid], w, styles.get(tid))
         except Exception as e:  # noqa: BLE001
             problems.append(f"{tid}: {e}")
             continue
@@ -98,9 +109,15 @@ def build(work_dir: Path, out_path: Path) -> dict:
         reasons = []
         if ARTICLE_NO_RE.search(q):
             reasons.append("조문 번호 포함")
-        if not 10 <= len(q) <= 120:
+        lo, hi = STYLE_LEN.get(item.style or "full")
+        if not lo <= len(q) <= hi:
             reasons.append(f"길이 {len(q)}")
-        if item.lexical_overlap is not None and item.lexical_overlap >= 0.8:
+        if item.style == "keyword" and ENDING_RE.search(q):
+            reasons.append("키워드형인데 문장 끝맺음")
+        if item.style and w.get("style") and w["style"] != item.style:
+            reasons.append(f"형태 불일치({w['style']})")
+        # 키워드형은 낱말이 적어 겹침이 높게 나오는 게 자연스럽다(형태별 평균으로 따로 본다)
+        if item.style != "keyword" and item.lexical_overlap is not None and item.lexical_overlap >= 0.8:
             reasons.append(f"겹침 {item.lexical_overlap}")
         if targets[tid]["category"] == "temporal" and not re.search(r"(19|20)\d{2}", q):
             reasons.append("시점 연도 없음")

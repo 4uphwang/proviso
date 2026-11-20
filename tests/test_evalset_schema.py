@@ -62,6 +62,12 @@ def test_retrieval_set_has_no_unanswerable():
         item(set="retrieval", category="unanswerable", answerable=False, gold=[], refusal_reason="out_of_corpus")
 
 
+def test_query_style():
+    assert EvalItem.model_validate(item(style="keyword")).style == "keyword"
+    with pytest.raises(ValidationError):
+        EvalItem.model_validate(item(style="shouting"))
+
+
 def test_unknown_field_rejected():
     with pytest.raises(ValidationError):
         item(answer="오타 필드")
