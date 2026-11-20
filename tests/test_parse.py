@@ -131,3 +131,11 @@ def test_article_refers_to_appendix():
                         parent_doc=None, name_to_doc={})
     got = [(r["doc_id"], r["article"]) for r in refs]
     assert ("A", "별표 1의2") in got and (None, "별표 3") in got
+
+
+def test_text_id_ignores_whitespace_only_changes(act):
+    import dataclasses
+    a = by_no(act[1], "제2조")
+    b = dataclasses.replace(a, text=a.text.replace("\n", "\n  ").replace(" 이 법", "이 법"))
+    c = dataclasses.replace(a, text=a.text.replace("접근매체", "접근 수단"))
+    assert a.text_id == b.text_id and a.text_id != c.text_id

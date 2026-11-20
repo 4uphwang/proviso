@@ -81,3 +81,10 @@ def test_repo_example_set_is_valid():
     report = validate_file(ROOT / "evalset" / "examples.jsonl", load_sources().doc_ids)
     assert report.ok, report.errors
     assert report.counts()["set/split"]["agent/dev"] == 2
+
+
+def test_substantive_diff_ignores_annotations_and_law_names():
+    from proviso.eval.targets import substantive_diff
+    old = "① 금융회사는 「구 법률」에 따라 10일 이내에 알려야 한다. <개정 2013.5.22>"
+    assert not substantive_diff(old, old.replace("구 법률", "새 법률").replace("2013.5.22", "2020.6.9") + "\n")
+    assert substantive_diff(old, old.replace("10일 이내에", "지체 없이 서면으로"))

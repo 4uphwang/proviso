@@ -14,6 +14,7 @@ from proviso.parse.refs import appendix_no, extract_delegated_from, extract_refs
 
 CIRCLED = {chr(0x2460 + i): i + 1 for i in range(20)}  # ①~⑳
 CIRCLED.update({chr(0x3251 + i): i + 21 for i in range(15)})  # ㉑~㉟
+WS_RE = re.compile(r"\s+")
 DELETED_RE = re.compile(r"^제\d+조(의\d+)?\s*삭제")
 BOX_CHARS_RE = re.compile(r"[\u2500-\u257F]+")  # ┏━┯┃│┠─┼ 등 표 테두리
 APPENDIX_SORT_BASE = 1_000_000  # 별표는 조문 뒤에 정렬
@@ -50,7 +51,9 @@ class Article:
 
     @property
     def text_id(self) -> str:
-        h = hashlib.sha256(f"{self.doc_id}\x1f{self.article_no}\x1f{self.text}".encode()).hexdigest()
+        # 공백·줄바꿈만 다른 본문은 같은 본문으로 본다(버전마다 줄바꿈 위치가 달라지는 경우가 있음)
+        norm = WS_RE.sub("", self.text)
+        h = hashlib.sha256(f"{self.doc_id}\x1f{self.article_no}\x1f{norm}".encode()).hexdigest()
         return h[:32]
 
     def to_dict(self) -> dict:
