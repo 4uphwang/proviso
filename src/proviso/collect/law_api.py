@@ -103,4 +103,10 @@ class LawApiClient:
 
     def history_html(self, query: str) -> str:
         """법령 연혁 목록. JSON을 요청해도 HTML로만 온다(1b 단계에서 사용)."""
-        return self._get("/lawSearch.do", {"target": "lsHistory", "type": "HTML", "query": query, "display": 100})
+        return self.history_page(query, 1)
+
+    def history_page(self, query: str, page: int) -> str:
+        """연혁 목록 한 페이지(최대 100행). 응답 HTML의 링크에 인증값이 들어 있어 가린 뒤 돌려준다."""
+        html = self._get("/lawSearch.do", {"target": "lsHistory", "type": "HTML", "query": query,
+                                           "display": 100, "page": page})
+        return html.replace(self._oc, "REDACTED")
