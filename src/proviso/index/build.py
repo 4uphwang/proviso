@@ -15,7 +15,7 @@ from typing import Any
 import yaml
 
 from proviso.config import ROOT
-from proviso.index.chunking import fixed_chunks
+from proviso.index.chunking import article_chunks, fixed_chunks
 
 INDEX_DIR = ROOT / "config" / "indexes"
 
@@ -34,13 +34,15 @@ def load_index_config(name_or_path: str) -> dict[str, Any]:
 def current_articles(conn, as_of: date) -> dict[str, list[dict]]:
     """문서별로 기준일에 유효한 조문(조 순서, 별표는 뒤). 별표는 표 테두리를 뺀 search_text를 쓴다."""
     rows = conn.execute("""
-        SELECT s.doc_id, s.article_no, s.valid_from, s.valid_to, coalesce(t.search_text, t.text)
-        FROM article_spans s JOIN article_texts t USING (text_id)
+        SELECT s.doc_id, s.article_no, s.valid_from, s.valid_to, coalesce(t.search_text, t.text),
+               s.heading, t.article_title, d.title
+        FROM article_spans s JOIN article_texts t USING (text_id) JOIN documents d ON d.doc_id = s.doc_id
         WHERE s.valid_from <= %(d)s AND (s.valid_to IS NULL OR %(d)s < s.valid_to) AND NOT t.deleted
         ORDER BY s.doc_id, s.sort_key""", {"d": as_of}).fetchall()
     out: dict[str, list[dict]] = {}
-    for doc, art, vf, vt, text in rows:
-        out.setdefault(doc, []).append({"article_no": art, "valid_from": vf, "valid_to": vt, "text": text})
+    for doc, art, vf, vt, text, heading, title, doc_title in rows:
+        out.setdefault(doc, []).append({"article_no": art, "valid_from": vf, "valid_to": vt, "text": text,
+                                        "heading": heading, "title": title, "doc_title": doc_title})
     return out
 
 
@@ -60,7 +62,7 @@ def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedde
 
     as_of = as_of or date.today()
     ch, em = cfg["chunking"], cfg["embedding"]
-    if ch.get("type") != "fixed":
+    if ch.get("type") not in ("fixed", "article"):
         raise ValueError(f"모르는 청킹 방식: {ch.get('type')!r}")
     embedder = embedder or Embedder(em["model"], max_length=em.get("max_length", 512),
                                     batch_size=em.get("batch_size", 16))
@@ -75,8 +77,11 @@ def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedde
     t0 = time.perf_counter()
     chunks = []
     for doc, arts in current_articles(conn, as_of).items():
-        for c in fixed_chunks(arts, embedder.tokenize_offsets, size=ch["size"], overlap=ch["overlap"]):
-            chunks.append({"doc_id": doc, **c})
+        if ch["type"] == "fixed":
+            cs = fixed_chunks(arts, embedder.tokenize_offsets, size=ch["size"], overlap=ch["overlap"])
+        else:
+            cs = article_chunks(arts, embedder.tokenize_offsets, size=ch["size"], header=ch.get("header", False))
+        chunks += [{"doc_id": doc, **c} for c in cs]
     log(f"조각 {len(chunks)}개, 임베딩 중({embedder.model_name})")
     vecs = embedder.encode([c["text"] for c in chunks])
     with conn.transaction():

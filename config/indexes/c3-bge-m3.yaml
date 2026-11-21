@@ -1,0 +1,10 @@
+# 2장 처방 1: 조 단위 청킹(C3). 조문 하나 = 조각 하나, 480토큰 넘는 조문은 항 경계에서 나눔. 머리말 없음.
+name: c3-bge-m3
+chunking:
+  type: article
+  size: 480
+  header: false
+embedding:
+  model: BAAI/bge-m3
+  max_length: 512
+  batch_size: 16
