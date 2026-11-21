@@ -1,0 +1,55 @@
+# proviso 법령 관계 스키마(OWL 2 RL). 데이터는 `proviso graph export`로 DB에서 만든다.
+# 유럽 법령 식별자 온톨로지(ELI, http://data.europa.eu/eli/ontology#)의 클래스·속성을 쓰고,
+# ELI에 없는 것(위임, 조문 버전)만 pv: 아래 새로 정의한다.
+@prefix pv:   <urn:proviso:ns#> .
+@prefix eli:  <http://data.europa.eu/eli/ontology#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:proviso:ns> a owl:Ontology ;
+  rdfs:comment "한국 금융 법령(법률·시행령)의 조문, 위임, 참조, 시행일 기준 버전" .
+
+# --- 클래스 ---------------------------------------------------------------
+eli:LegalResource a owl:Class .
+eli:LegalResourceSubdivision a owl:Class ; rdfs:subClassOf eli:LegalResource .
+
+pv:Act    a owl:Class ; rdfs:subClassOf eli:LegalResource ; rdfs:label "법률" .
+pv:Decree a owl:Class ; rdfs:subClassOf eli:LegalResource ; rdfs:label "시행령" .
+pv:Article  a owl:Class ; rdfs:subClassOf eli:LegalResourceSubdivision ; rdfs:label "조" .
+pv:Appendix a owl:Class ; rdfs:subClassOf eli:LegalResourceSubdivision ; rdfs:label "별표" .
+pv:ArticleVersion a owl:Class ; rdfs:label "조문 버전(시행일 구간 하나, 본문이 같으면 이어 붙인다)" .
+pv:Article owl:disjointWith pv:Appendix .
+pv:Act owl:disjointWith pv:Decree .
+
+# --- 구조 -----------------------------------------------------------------
+eli:is_part_of a owl:ObjectProperty, owl:TransitiveProperty ; rdfs:label "~의 일부" .
+eli:has_part   a owl:ObjectProperty ; owl:inverseOf eli:is_part_of .
+eli:based_on   a owl:ObjectProperty ; rdfs:label "시행령 → 모법" ;
+  rdfs:domain pv:Decree ; rdfs:range pv:Act .
+
+# --- 조문 사이 관계 ---------------------------------------------------------
+eli:cites a owl:ObjectProperty ; rdfs:label "본문에서 '제N조'로 가리킨다" .
+eli:cited_by a owl:ObjectProperty ; owl:inverseOf eli:cites .
+
+pv:delegatesTo a owl:ObjectProperty ; rdfs:label "법 조문의 '대통령령으로 정하는'을 이 시행령 조문이 정한다" ;
+  rdfs:domain pv:Article ; rdfs:range eli:LegalResourceSubdivision .
+pv:delegatedFrom a owl:ObjectProperty ; owl:inverseOf pv:delegatesTo .
+
+# 시행령 조문 → 그 조문에 위임한 법 조문이 속한 법률 (위임받음 ∘ ~의 일부)
+pv:implementsAct a owl:ObjectProperty ; rdfs:label "이 시행령 조문이 구체화하는 법률" ;
+  owl:propertyChainAxiom ( pv:delegatedFrom eli:is_part_of ) .
+
+# --- 버전 -----------------------------------------------------------------
+pv:hasVersion a owl:ObjectProperty ; rdfs:domain eli:LegalResourceSubdivision ; rdfs:range pv:ArticleVersion .
+pv:versionOf  a owl:ObjectProperty ; owl:inverseOf pv:hasVersion .
+pv:nextVersion a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:label "본문이 바뀐 다음 버전" .
+pv:previousVersion a owl:ObjectProperty ; owl:inverseOf pv:nextVersion .
+pv:laterVersion a owl:ObjectProperty, owl:TransitiveProperty ; rdfs:label "이후의 모든 버전" .
+pv:nextVersion rdfs:subPropertyOf pv:laterVersion .
+
+eli:first_date_entry_in_force a owl:DatatypeProperty ; rdfs:range xsd:date ; rdfs:label "시행일(구간 시작)" .
+eli:date_no_longer_in_force   a owl:DatatypeProperty ; rdfs:range xsd:date ; rdfs:label "효력 끝(없으면 현행)" .
+eli:title a owl:DatatypeProperty .
+pv:text a owl:DatatypeProperty ; rdfs:label "조문 원문" .
+pv:deleted a owl:DatatypeProperty ; rdfs:range xsd:boolean ; rdfs:label "이 버전에서 '제N조 삭제'" .

@@ -16,6 +16,8 @@ dependencies = [
 dev = ["pytest>=8.0"]
 # 로컬 임베딩(bge-m3 등). 모델은 처음 쓸 때 Hugging Face에서 받아 ~/.cache/huggingface에 둔다
 embed = ["sentence-transformers>=3.0", "torch>=2.4"]
+# 법령 관계 그래프(RDF/OWL, `proviso graph`)
+graph = ["rdflib>=7.0", "owlrl>=7.0"]
 
 [project.scripts]
 proviso = "proviso.cli:main"

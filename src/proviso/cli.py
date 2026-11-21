@@ -142,6 +142,32 @@ def _gate_check(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def _graph_export(args: argparse.Namespace) -> int:
+    from proviso.db.connect import connect
+    from proviso.graph.rdf import export
+
+    with connect() as conn:
+        n, out = export(conn, Path(args.out))
+    print(f"트리플 {n}개 → {out} (스키마: ontology/proviso.ttl)")
+    return 0
+
+
+def _graph_check(args: argparse.Namespace) -> int:
+    from proviso.db.connect import connect
+    from proviso.graph.rdf import build_graph, checks, reason
+
+    with connect() as conn:
+        g = build_graph(conn)
+        n0 = len(g)
+        secs = reason(g)
+        print(f"트리플 {n0}개 → 추론 뒤 {len(g)}개 ({secs}초)")
+        rows = checks(conn, g)
+    print("| 질문 | SPARQL | SQL | 같음 |\n|---|---:|---:|---|")
+    for name, a, b in rows:
+        print(f"| {name} | {a} | {b} | {'예' if a == b else '아니오'} |")
+    return 0 if all(a == b for _, a, b in rows) else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="proviso", description="금융 법령 근거 에이전트")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -192,6 +218,14 @@ def main(argv: list[str] | None = None) -> int:
     gtc = gt_sub.add_parser("check", help="recall@10이 기준값 − 허용폭 아래면 실패")
     gtc.add_argument("--update", action="store_true", help="지금 점수를 새 기준값으로 저장")
     gtc.set_defaults(func=_gate_check)
+
+    gr = sub.add_parser("graph", help="법령 관계 그래프(RDF/OWL). pip install -e '.[graph]'")
+    gr_sub = gr.add_subparsers(dest="graph_command", required=True)
+    gre = gr_sub.add_parser("export", help="DB → Turtle 파일")
+    gre.add_argument("--out", default="data/graph/proviso.ttl")
+    gre.set_defaults(func=_graph_export)
+    grc = gr_sub.add_parser("check", help="OWL 2 RL 추론 뒤 SPARQL 답을 SQL 답과 대조")
+    grc.set_defaults(func=_graph_check)
 
     args = parser.parse_args(argv)
     return args.func(args)
