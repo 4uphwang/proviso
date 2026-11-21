@@ -25,6 +25,7 @@ class Fixed:
 def make_reranker(inner, texts, scorer, top_n):
     r = RerankRetriever.__new__(RerankRetriever)
     r._inner, r._top_n, r._batch, r._scorer, r._params = inner, top_n, 8, scorer, {}
+    r._skip, r.reranked = None, []
     r._texts = texts
     return r
 
@@ -58,3 +59,21 @@ def test_query_transform_keeps_original_question():
     t.search("카드 잃어버림", k=1)
     assert inner.seen == ["카드 잃어버림\n법률 용어"]
     assert t.describe()["query_llm"]["mode"] == "rewrite"
+
+
+def test_route_skips_rerank_when_first_stage_is_confident():
+    class Scored(Fixed):
+        def search(self, q, *, k, as_of=None):
+            return [Hit(f"c{i}", "법", a, D, score=s) for i, (a, s) in enumerate(self.arts[:k])]
+
+    texts = {("법", "제1조", str(D)): ["무관"], ("법", "제2조", str(D)): ["정답"]}
+
+    def scorer(pairs, batch_size):
+        return [1.0 if t == "정답" else 0.0 for _, t in pairs]
+
+    sure = make_reranker(Scored([("제1조", 0.04), ("제2조", 0.01)]), texts, scorer, top_n=2)
+    sure._skip, sure.reranked = 0.03, []
+    assert [h.article_no for h in sure.search("q", k=2)] == ["제1조", "제2조"] and sure.reranked == [False]
+    unsure = make_reranker(Scored([("제1조", 0.02), ("제2조", 0.01)]), texts, scorer, top_n=2)
+    unsure._skip, unsure.reranked = 0.03, []
+    assert [h.article_no for h in unsure.search("q", k=2)] == ["제2조", "제1조"] and unsure.reranked == [True]
