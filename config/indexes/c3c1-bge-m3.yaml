@@ -2,7 +2,7 @@
 name: c3c1-bge-m3
 chunking:
   type: article
-  size: 480
+  size: 500
   header: true
 embedding:
   model: BAAI/bge-m3

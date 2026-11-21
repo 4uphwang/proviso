@@ -52,7 +52,9 @@ def test_article_chunks_one_per_article_and_split_long_at_paragraphs():
 
     with_header = article_chunks(arts, char_tokens, size=70, header=True)
     assert with_header[0]["text"].startswith("[전자금융거래법] 제1장 총칙 > 제4조(짧음)\n")
-    assert with_header[2]["text"].startswith("[전자금융거래법] 제5조(제목)\n③")
+    # 머리말 몫만큼 본문이 줄어 항마다 따로 나뉘고, 조각마다 머리말이 붙는다
+    assert [c["text"].split("\n", 1)[1][:1] for c in with_header[1:]] == ["제", "②", "③"]
+    assert all(c["text"].startswith("[전자금융거래법] 제5조(제목)\n") for c in with_header[1:])
 
 
 def test_article_chunks_hard_split_single_huge_line():
@@ -60,3 +62,12 @@ def test_article_chunks_hard_split_single_huge_line():
     arts = [{"article_no": "별표 1", "valid_from": date(2020, 1, 1), "text": "라" * 250, "doc_title": "법"}]
     chunks = article_chunks(arts, char_tokens, size=100)
     assert [len(c["text"]) for c in chunks] == [100, 100, 50]
+
+
+def test_header_counts_toward_size():
+    from proviso.index.chunking import article_chunks
+    arts = [{"article_no": "제5조", "valid_from": date(2020, 1, 1), "text": "가" * 150,
+             "doc_title": "법", "heading": "제1장 총칙 <개정 2020.2.4>", "title": "목적"}]
+    chunks = article_chunks(arts, char_tokens, size=100, header=True)
+    assert all(len(char_tokens(c["text"])) <= 100 for c in chunks)
+    assert chunks[0]["text"].startswith("[법] 제1장 총칙 > 제5조(목적)\n")

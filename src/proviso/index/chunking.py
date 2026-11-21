@@ -107,22 +107,26 @@ def _pack(parts: list[str], tokenize: Tokenize, size: int) -> list[str]:
 def header_for(a: dict) -> str:
     """C1 문맥 머리말: '[법령명] 장 제목 > 제N조(제목)'. 긴 조문을 나눈 뒤 조각마다 붙여 어느 조문인지 알게 한다."""
     title = f"{a['article_no']}({a['title']})" if a.get("title") else a["article_no"]
-    path = " > ".join(x for x in (a.get("heading"), title) if x)
+    heading = re.sub(r"\s*<[^<>]*>", "", a.get("heading") or "").strip()  # 장 제목의 <개정 …> 표기는 뺀다
+    path = " > ".join(x for x in (heading, title) if x)
     return f"[{a['doc_title']}] {path}\n"
 
 
-def article_chunks(articles: list[dict], tokenize: Tokenize, size: int = 480, header: bool = False) -> list[dict]:
+def article_chunks(articles: list[dict], tokenize: Tokenize, size: int = 500, header: bool = False) -> list[dict]:
     """조문 하나 = 조각 하나. size 토큰을 넘는 조문은 항 경계에서 나눠 여러 조각으로 만든다(모두 같은 조문을 가리킨다).
 
-    header=True면 조각마다 문맥 머리말(C1)을 앞에 붙인다. 머리말은 size에 넣지 않는다(짧아서 512 안에 들어간다).
+    header=True면 조각마다 문맥 머리말(C1)을 앞에 붙이고, 머리말 길이만큼 본문 몫을 줄인다
+    (머리말 + 본문이 size를 넘으면 모델 입력 길이에서 본문 끝이 잘린다).
     """
     out = []
     for a in articles:
-        parts = [s for u in _units(a["text"]) for s in _split_long(u, tokenize, size)]
-        pieces = _pack(parts, tokenize, size)
+        head = header_for(a) if header else ""
+        body = size - len(tokenize(head))
+        parts = [s for u in _units(a["text"]) for s in _split_long(u, tokenize, body)]
+        pieces = _pack(parts, tokenize, body)
         for i, p in enumerate(pieces):
             out.append({
-                "text": (header_for(a) if header else "") + p,
+                "text": head + p,
                 "articles": [{"article_no": a["article_no"], "valid_from": str(a["valid_from"]),
                               "valid_to": str(a["valid_to"]) if a.get("valid_to") else None,
                               "chars": len(p), "part": i, "parts": len(pieces)}],
