@@ -1,0 +1,11 @@
+# 무작위 검색: 기준일에 유효한 조문 중 무작위 k개. 검색을 안 했을 때의 점수(우연 수준).
+name: random
+retriever:
+  type: random
+  params:
+    seed: 0
+evalset: evalset/retrieval.jsonl
+split: dev        # 설정 고르기는 dev, 보고용 숫자는 --split test
+k: 20
+repeats: 1        # 결과가 흔들리는 검색기(LLM 재작성·재정렬)만 3
+use_as_of: true   # 시점 문항의 기준일을 검색기에 넘김(날짜 추출이 완벽하다고 가정)

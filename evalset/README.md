@@ -32,3 +32,17 @@ proviso evalset check evalset/*.jsonl
 3. 사람이 표본과 바뀐 문항을 검수
 
 `origin`: `human` = 사람이 검수한 질문 그대로(112), `ai_verified` = 리뷰 에이전트 검토 통과(888).
+
+## 평가 실행
+
+```bash
+proviso eval --config config/experiments/<이름>.yaml            # dev(설정 고르기)
+proviso eval --config config/experiments/<이름>.yaml --split test  # 보고용
+proviso compare runs/<A>.json runs/<B>.json --out runs/<A>_vs_<B>.md
+```
+
+- 채점: 검색 결과를 조문 버전 단위로 묶은 뒤 주 정답(gold[0])의 순위로 recall@1·5·10·20, MRR@10을 낸다. 시점 문항은 그 시점 버전이어야, 나머지는 실행일에 유효한 버전이어야 정답이다. 위임 문항은 법 조문까지 함께 찾았는지도 따로 센다. 규칙은 `src/proviso/eval/metrics.py` 머리말.
+- 칸별: 유형, 질문 형태, 오타, 법령명 포함, 법령, 단어 겹침 구간.
+- 신뢰구간: 문항 단위 부트스트랩 1,000회(95%). 비교는 짝지은 부트스트랩으로 B − A 구간이 0을 넘는지 본다.
+- 결과 파일(`runs/*.json`, git 제외)에는 설정, 검색기 설명, 데이터 스냅샷 ID, 평가셋 해시, 커밋, 문항별 순위·지연이 들어간다. `compare`는 평가셋·split·문항이 다르면 거부하고, 스냅샷이 다르면 `--allow-snapshot-mismatch` 없이는 거부한다.
+- `random` 검색기(우연 수준): test recall@10 0.009, recall@20 0.017.

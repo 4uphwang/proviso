@@ -79,6 +79,36 @@ def _load(args: argparse.Namespace) -> int:
     return 0
 
 
+def _eval(args: argparse.Namespace) -> int:
+    import json
+
+    from proviso.db.connect import connect
+    from proviso.eval.run import format_summary, load_config, run_eval
+
+    cfg = load_config(Path(args.config))
+    if args.repeats:
+        cfg["repeats"] = args.repeats
+    with connect() as conn:
+        path = run_eval(cfg, conn, split=args.split, limit=args.limit)
+    print(format_summary(json.loads(path.read_text(encoding="utf-8"))))
+    print(f"\n결과: {path}")
+    return 0
+
+
+def _compare(args: argparse.Namespace) -> int:
+    from proviso.eval.compare import CompareError, compare_files
+
+    try:
+        md = compare_files(Path(args.a), Path(args.b), allow_snapshot_mismatch=args.allow_snapshot_mismatch)
+    except CompareError as e:
+        print(f"비교 불가: {e}")
+        return 2
+    if args.out:
+        Path(args.out).write_text(md, encoding="utf-8")
+    print(md)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="proviso", description="금융 법령 근거 에이전트")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -99,6 +129,20 @@ def main(argv: list[str] | None = None) -> int:
     col.set_defaults(func=_collect)
     ld = sub.add_parser("load", help="수집한 원본을 파싱해 DB에 적재")
     ld.set_defaults(func=_load)
+
+    evp = sub.add_parser("eval", help="검색 평가 실행 → runs/<시각>_<이름>.json")
+    evp.add_argument("--config", required=True, help="config/experiments/<이름>.yaml")
+    evp.add_argument("--split", choices=["dev", "test", "all"], help="기본: 설정 파일의 split")
+    evp.add_argument("--limit", type=int, help="앞에서 N문항만(빠른 확인용. 비교에는 쓰지 말 것)")
+    evp.add_argument("--repeats", type=int, help="같은 설정 반복 횟수(기본: 설정 파일)")
+    evp.set_defaults(func=_eval)
+
+    cmp = sub.add_parser("compare", help="두 실행 결과 비교(짝지은 부트스트랩)")
+    cmp.add_argument("a")
+    cmp.add_argument("b")
+    cmp.add_argument("--out", help="비교표를 md 파일로도 저장")
+    cmp.add_argument("--allow-snapshot-mismatch", action="store_true")
+    cmp.set_defaults(func=_compare)
 
     args = parser.parse_args(argv)
     return args.func(args)
