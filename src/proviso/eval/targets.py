@@ -21,17 +21,47 @@ CUR = """s.valid_from <= %(today)s AND (s.valid_to IS NULL OR %(today)s < s.vali
 
 
 ANNOT_RE = re.compile(r"<[^<>]{0,80}>|\[[^\[\]]{0,80}\]|「[^」]*」|\s+")
+# 조문을 가리키는 말(법 제3조제2항제1호가목, 같은 조, 각 호 등). 번호만 바뀐 개정을 차이로 보지 않으려고 지운다
+REF_TEXT_RE = re.compile(r"(법\s*)?제\d+조(의\d+)?(제\d+항)?(제\d+호(의\d+)?)?([가-하]목)?|제\d+(항|호)(의\d+)?|[가-하]목|같은\s*조|각\s*[호목]")
+# 내용은 같고 용어만 바뀐 개정(전자금융 법령에서 흔함)
+TERM_SYNONYMS = [("금융기관", "금융회사"), ("모사전송번호", "팩스번호"), ("모사전송", "팩스")]
 
 
-def substantive_diff(old: str, new: str, min_chars: int = 5) -> bool:
-    """개정 표기(<개정 …>), 다른 법 이름(「…」), 공백을 빼고도 min_chars자 이상 다르면 True."""
+def _normalize_for_diff(text: str) -> str:
+    t = text or ""
+    for old, new in TERM_SYNONYMS:
+        t = t.replace(old, new)
+    return ANNOT_RE.sub("", REF_TEXT_RE.sub("", t))
+
+
+def substantive_diff(old: str, new: str, min_chars: int = 5, strict: bool = False) -> bool:
+    """옛 본문과 지금 본문이 min_chars자 이상 다르면 True. 개정 표기(<개정 …>), 다른 법 이름(「…」), 공백은 무시한다.
+
+    strict=True(교체 대상 뽑을 때, 검토에서 나온 기준): 조문 번호, 용어만 바뀐 것(금융기관→금융회사)도 무시하고,
+    옛 본문 쪽 차이만 센다. 지금 본문에 새로 생긴 내용만 있으면 옛 본문으로 물을 거리가 없기 때문이다.
+    """
     import difflib
-    a, b = ANNOT_RE.sub("", old or ""), ANNOT_RE.sub("", new or "")
+    if strict:
+        a, b = _normalize_for_diff(old), _normalize_for_diff(new)
+    else:
+        a, b = ANNOT_RE.sub("", old or ""), ANNOT_RE.sub("", new or "")
     if a == b:
         return False
     matched = sum(m.size for m in difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks())
-    changed = max(len(a), len(b)) - matched
-    return changed >= min_chars
+    return (len(a) if strict else max(len(a), len(b))) - matched >= min_chars
+
+
+POINTER_WORDS_RE = re.compile(
+    r"대통령령으로\s*정하는|총리령으로\s*정하는|금융위원회가\s*정하여\s*고시하는|금융위원회가\s*고시하는|그\s*밖에|"
+    r"에\s*해당하는|에\s*따른|의\s*어느\s*하나|준용한다|자|것|기관|정보|경우|를\s*말한다"
+)
+
+
+def pointer_only(text: str, min_chars: int = 20) -> bool:
+    """다른 조문·법령을 가리키거나 '그 밖에 대통령령/고시로 정하는 ~'뿐이라 이 본문만 읽어서는 답이 안 나오면 True."""
+    t = REF_TEXT_RE.sub("", ANNOT_RE.sub("", re.sub(r"^\s*(제\d+조(의\d+)?\([^)]*\)|\d+(의\d+)?\.)", "", text or "")))
+    t = POINTER_WORDS_RE.sub("", t)
+    return len(re.findall(r"[가-힣0-9]", t)) < min_chars
 
 
 def _rows(conn, sql, **params):
@@ -60,6 +90,21 @@ def _sqrt_alloc(counts: dict[str, int], total: int) -> dict[str, int]:
         alloc[d] += add
         rest -= add
     return alloc
+
+
+def _past_articles(conn, today):
+    """지금은 바뀐 옛 조문(180일 이상 유효했던 것)과 그 조문의 지금 본문."""
+    return _rows(conn, """
+        SELECT s.chunk_id, s.doc_id, s.article_no, s.sort_key, s.valid_from, s.valid_to, s.text_id, t.kind,
+               t.article_title AS title, t.text, t.paragraphs, c.text AS current_text, c.text_id AS current_text_id
+        FROM article_spans s JOIN article_texts t USING (text_id)
+        JOIN article_spans cs ON cs.doc_id = s.doc_id AND cs.article_no = s.article_no
+             AND cs.valid_from <= %(today)s AND (cs.valid_to IS NULL OR %(today)s < cs.valid_to)
+        JOIN article_texts c ON c.text_id = cs.text_id
+        WHERE s.valid_to IS NOT NULL AND s.valid_to <= %(today)s AND s.valid_to - s.valid_from >= 180
+          AND NOT t.deleted AND NOT c.deleted AND t.text_id <> c.text_id AND t.kind = 'article'
+          AND length(t.text) >= %(min_len)s
+        ORDER BY s.chunk_id""", today=today, min_len=MIN_LEN)
 
 
 def sample_targets(conn: psycopg.Connection, seed: int = 20261120, today: date | None = None) -> list[dict]:
@@ -124,17 +169,7 @@ def sample_targets(conn: psycopg.Connection, seed: int = 20261120, today: date |
         take(d, "cross_ref")
 
     # 4) 시점: 지금은 바뀐 옛 조문. 기준일은 그 조문이 유효했던 기간의 가운데
-    past = _rows(conn, """
-        SELECT s.chunk_id, s.doc_id, s.article_no, s.sort_key, s.valid_from, s.valid_to, s.text_id, t.kind,
-               t.article_title AS title, t.text, t.paragraphs, c.text AS current_text, c.text_id AS current_text_id
-        FROM article_spans s JOIN article_texts t USING (text_id)
-        JOIN article_spans cs ON cs.doc_id = s.doc_id AND cs.article_no = s.article_no
-             AND cs.valid_from <= %(today)s AND (cs.valid_to IS NULL OR %(today)s < cs.valid_to)
-        JOIN article_texts c ON c.text_id = cs.text_id
-        WHERE s.valid_to IS NOT NULL AND s.valid_to <= %(today)s AND s.valid_to - s.valid_from >= 180
-          AND NOT t.deleted AND NOT c.deleted AND t.text_id <> c.text_id AND t.kind = 'article'
-          AND length(t.text) >= %(min_len)s
-        ORDER BY s.chunk_id""", today=today, min_len=MIN_LEN)
+    past = _past_articles(conn, today)
     rng.shuffle(past)
     seen_articles: set[tuple] = set()
     for p in past:
@@ -158,6 +193,11 @@ def sample_targets(conn: psycopg.Connection, seed: int = 20261120, today: date |
         for a in rng.sample(pool[d], n):
             take(a, "lookup")
 
+    _split_and_number(out, rng)
+    return out
+
+
+def _split_and_number(out: list[dict], rng: random.Random) -> None:
     # dev/test 나누기(유형별 30%)
     by_cat: dict[str, list[dict]] = defaultdict(list)
     for o in out:
@@ -170,4 +210,55 @@ def sample_targets(conn: psycopg.Connection, seed: int = 20261120, today: date |
     rng.shuffle(out)
     for i, o in enumerate(out, start=1):
         o["id"] = f"r{i:04d}"
+
+
+def good_target(t: dict) -> bool:
+    """교체 대상 조건(1차 검토에서 나온 기준): 다른 조문을 가리키기만 하는 본문, 목적 조항, 옛 본문 쪽 차이가 없는 시점 대상은 뺀다."""
+    if re.search(r"목적$|준용", t.get("title") or ""):  # 목적 조항, 다른 조문을 그대로 쓰라는 준용 조항
+        return False
+    if pointer_only(t.get("item_text") or t["text"]):
+        return False
+    if t["category"] == "temporal" and not substantive_diff(t["text"], t["current_text"], strict=True):
+        return False
+    if t["category"] == "appendix" and len(re.findall(r"\d", t["text"])) < 10:  # 숫자·기준이 없는 참조표
+        return False
+    return True
+
+
+def replacement_candidates(conn: psycopg.Connection, targets: list[dict], drop_ids: list[str], per_drop: int = 3,
+                           seed: int = 20261121, today: date | None = None) -> dict[str, list[dict]]:
+    """빠진 문항마다 같은 유형의 새 대상 후보를 per_drop개씩 고른다(이미 쓴 조문 제외, good_target 통과).
+
+    시드 고정이라 같은 DB·같은 drop 목록이면 같은 후보가 나온다. 후보 중 질문을 쓸 수 있는 첫 번째를 쓴다.
+    """
+    today = today or date.today()
+    pool = sample_targets(conn, seed=seed, today=today)  # 다른 시드로 뽑은 전체 대상에서 후보를 고른다
+    # 시점 후보는 몫(100개)에 묶이지 않게 옛 조문 전체에서 따로 고른다(조문당 하나, 기준일은 유효 기간 가운데)
+    rng = random.Random(seed)
+    past = _past_articles(conn, today)
+    rng.shuffle(past)
+    for p in past:
+        mid = p["valid_from"] + timedelta(days=(p["valid_to"] - p["valid_from"]).days // 2)
+        pool.append({"category": "temporal", **p, "as_of": mid})
+    taken_temporal = {(t["doc_id"], t["article_no"]) for t in targets if t["category"] == "temporal"}
+    # 같은 조문이 버전마다 text_id가 다를 수 있어 (문서, 조, 항, 호)로도 막는다
+    used = {t["text_id"] for t in targets} | {(t["doc_id"], t["article_no"], str(t.get("paragraph")), str(t.get("item"))) for t in targets}
+    by_id = {t["id"]: t for t in targets}
+    out: dict[str, list[dict]] = {}
+    for did in sorted(drop_ids):
+        cat = by_id[did]["category"]
+        picked = []
+        for c in pool:
+            akey = (c["doc_id"], c["article_no"], str(c.get("paragraph")), str(c.get("item")))
+            if c["category"] != cat or akey in used or (cat != "definition" and c["text_id"] in used) or not good_target(c):
+                continue
+            if cat == "temporal":
+                if (c["doc_id"], c["article_no"]) in taken_temporal:
+                    continue
+                taken_temporal.add((c["doc_id"], c["article_no"]))
+            used |= {akey, c["text_id"]} if cat != "definition" else {akey}
+            picked.append({**c, "id": did, "split": by_id[did]["split"]})
+            if len(picked) >= per_drop:
+                break
+        out[did] = picked
     return out

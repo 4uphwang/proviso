@@ -27,7 +27,7 @@ def lexical_overlap(question: str, gold_text: str) -> float:
 
 # 형태별 길이 범위(GUIDELINES.md '질문 형태')
 STYLE_LEN = {"keyword": (6, 30), "casual": (8, 40), "full": (15, 120)}
-ENDING_RE = re.compile(r"(\?|요|까|죠|나요|니)\s*$")  # 키워드형에 붙으면 안 되는 문장 끝
+ENDING_RE = re.compile(r"(\?|(?<!필)요|까|죠|니)\s*$")  # 키워드형에 붙으면 안 되는 문장 끝
 
 
 def to_item(t: dict, w: dict, style: dict | None = None) -> EvalItem:

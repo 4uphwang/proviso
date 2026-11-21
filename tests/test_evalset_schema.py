@@ -94,3 +94,18 @@ def test_substantive_diff_ignores_annotations_and_law_names():
     old = "① 금융회사는 「구 법률」에 따라 10일 이내에 알려야 한다. <개정 2013.5.22>"
     assert not substantive_diff(old, old.replace("구 법률", "새 법률").replace("2013.5.22", "2020.6.9") + "\n")
     assert substantive_diff(old, old.replace("10일 이내에", "지체 없이 서면으로"))
+
+
+def test_strict_diff_ignores_renumbering_terms_and_additions():
+    from proviso.eval.targets import substantive_diff
+    old = "① 금융기관은 제26조에 따른 자를 감사위원으로 선임할 수 없다."
+    assert not substantive_diff(old, old.replace("금융기관", "금융회사").replace("제26조", "제384조"), strict=True)
+    assert not substantive_diff(old, old + "\n② 전자등록주식은 제1항을 적용하지 아니한다.", strict=True)  # 새로 생긴 항뿐
+    assert substantive_diff(old, old.replace("감사위원으로 선임할 수 없다", "이사로 둘 수 있다"), strict=True)
+
+
+def test_pointer_only():
+    from proviso.eval.targets import pointer_only
+    assert pointer_only("5. 그 밖에 제1호부터 제4호까지와 유사한 정보로서 금융위원회가 정하여 고시하는 정보")
+    assert pointer_only("3. 「금융회사의 지배구조에 관한 법률 시행령」 제3조제1항 각 호의 자")
+    assert not pointer_only("1. 선불전자지급수단을 발행하는 자는 미상환잔액의 100분의 50 이상을 신탁하거나 예치하여야 한다")
