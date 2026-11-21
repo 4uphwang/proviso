@@ -29,4 +29,8 @@ def build_retriever(spec: dict[str, Any], conn) -> Retriever:
         from proviso.retrieve.random_baseline import RandomRetriever
 
         return RandomRetriever(conn, **params)
+    if kind == "dense":
+        from proviso.retrieve.dense import DenseRetriever
+
+        return DenseRetriever(conn, **params)
     raise ValueError(f"모르는 검색기 종류: {kind!r}")

@@ -90,7 +90,29 @@ CREATE TABLE IF NOT EXISTS snapshots (
   content_hash text NOT NULL
 );
 
--- 임베딩은 모델마다 차원이 달라 색인 단계에서 emb_<모델> 테이블을 만든다(text_id 기준).
+-- 검색 색인 하나 = (청킹 방식, 임베딩 모델, 기준일, 스냅샷). 같은 이름의 색인을 다시 만들면 새 index_id가 생긴다.
+CREATE TABLE IF NOT EXISTS index_versions (
+  index_id     text PRIMARY KEY,             -- '<이름>-<설정·스냅샷 해시 8자리>'
+  name         text NOT NULL,                -- config/indexes/<이름>.yaml
+  method       jsonb NOT NULL,               -- 청킹·모델·파라미터 전체
+  snapshot_id  text REFERENCES snapshots(snapshot_id),
+  as_of        date NOT NULL,                -- 이날 유효한 조문으로 만든 색인(현행만 넣는 기준선)
+  chunk_count  integer NOT NULL,
+  build_seconds numeric,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+-- 색인 조각. 고정 길이 청킹은 조 경계를 무시하므로 조각 하나가 조문 여러 개에 걸친다(articles).
+-- embedding은 차원을 고정하지 않는다(모델마다 다름). 조문 수천 개 규모라 정확 검색(전수 비교)으로 충분하다.
+CREATE TABLE IF NOT EXISTS index_chunks (
+  index_id   text NOT NULL REFERENCES index_versions(index_id) ON DELETE CASCADE,
+  chunk_no   integer NOT NULL,
+  doc_id     text NOT NULL REFERENCES documents(doc_id),
+  text       text NOT NULL,
+  articles   jsonb NOT NULL,                 -- [{"article_no", "valid_from", "valid_to", "chars"}] 조각 안 순서대로
+  embedding  vector,
+  PRIMARY KEY (index_id, chunk_no)
+);
 
 -- 트레이스: 요청 하나 = trace, 단계 하나(LLM 호출, 도구 호출, 검색) = span
 CREATE TABLE IF NOT EXISTS traces (

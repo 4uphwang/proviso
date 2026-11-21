@@ -79,6 +79,19 @@ def _load(args: argparse.Namespace) -> int:
     return 0
 
 
+def _index_build(args: argparse.Namespace) -> int:
+    from datetime import date
+
+    from proviso.db.connect import apply_schema, connect
+    from proviso.index.build import build_index, load_index_config
+
+    cfg = load_index_config(args.name)
+    with connect() as conn:
+        apply_schema(conn)
+        build_index(conn, cfg, as_of=date.fromisoformat(args.as_of) if args.as_of else None)
+    return 0
+
+
 def _eval(args: argparse.Namespace) -> int:
     import json
 
@@ -129,6 +142,13 @@ def main(argv: list[str] | None = None) -> int:
     col.set_defaults(func=_collect)
     ld = sub.add_parser("load", help="수집한 원본을 파싱해 DB에 적재")
     ld.set_defaults(func=_load)
+
+    ix = sub.add_parser("index", help="검색 색인")
+    ix_sub = ix.add_subparsers(dest="index_command", required=True)
+    ixb = ix_sub.add_parser("build", help="config/indexes/<이름>.yaml로 색인 만들기(같은 설정·스냅샷이면 건너뜀)")
+    ixb.add_argument("name")
+    ixb.add_argument("--as-of", help="이날 유효한 조문으로(기본: 오늘)")
+    ixb.set_defaults(func=_index_build)
 
     evp = sub.add_parser("eval", help="검색 평가 실행 → runs/<시각>_<이름>.json")
     evp.add_argument("--config", required=True, help="config/experiments/<이름>.yaml")

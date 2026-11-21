@@ -1,0 +1,10 @@
+# 1장 기준선 색인: 고정 길이 청킹(C0) + bge-m3 단일 벡터(D1). 현행 조문만.
+name: c0-bge-m3
+chunking:
+  type: fixed      # 조 경계를 무시하고 토큰 수로 자름(문서 경계는 지킴)
+  size: 500        # 토큰(bge-m3 토크나이저 기준)
+  overlap: 50
+embedding:
+  model: BAAI/bge-m3
+  max_length: 512
+  batch_size: 16
