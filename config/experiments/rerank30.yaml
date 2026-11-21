@@ -1,0 +1,22 @@
+# 4장 R1: 3장 최종(RRF + 약칭) 상위 30개를 cross-encoder(bge-reranker-v2-m3)로 재정렬
+name: rerank30
+retriever:
+  type: rerank
+  params:
+    index: c3c1-bge-m3       # 조문 본문(머리말 포함 조각)을 가져올 색인
+    model: BAAI/bge-reranker-v2-m3
+    top_n: 30
+    inner:
+      type: rrf
+      expand_aliases: true   # 약칭 확장은 1단계 검색에만. 재정렬은 원래 질문으로 읽는다
+      params:
+        k_rrf: 60
+        depth: 100
+        parts:
+          dense: {type: dense, params: {index: c3c1-bge-m3}}
+          bm25: {type: bm25, params: {tokenizer: morph, header: true, as_of: "2026-11-20"}}
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 20
+repeats: 1
+use_as_of: true

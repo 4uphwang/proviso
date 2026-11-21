@@ -8,13 +8,17 @@ from __future__ import annotations
 from functools import lru_cache
 
 
+def _device() -> str:
+    import torch
+
+    return "mps" if torch.backends.mps.is_available() else "cpu"
+
+
 @lru_cache(maxsize=2)
 def load_model(name: str):
-    import torch
     from sentence_transformers import SentenceTransformer
 
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    return SentenceTransformer(name, device=device)
+    return SentenceTransformer(name, device=_device())
 
 
 class Embedder:

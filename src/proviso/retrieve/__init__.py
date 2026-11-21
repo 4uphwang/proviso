@@ -23,7 +23,7 @@ class Retriever(Protocol):
 
 
 def build_retriever(spec: dict[str, Any], conn) -> Retriever:
-    """spec = {type, params, expand_aliases?}. type: random | dense | bm25 | rrf(params.parts = {이름: spec})."""
+    """spec = {type, params, expand_aliases?}. type: random | dense | bm25 | rrf(params.parts = {이름: spec}) | rerank(params.inner = spec)."""
     kind = spec.get("type")
     params = dict(spec.get("params") or {})
     if kind == "random":
@@ -43,6 +43,10 @@ def build_retriever(spec: dict[str, Any], conn) -> Retriever:
 
         parts = [(name, build_retriever(s, conn)) for name, s in params.pop("parts").items()]
         r = RRFRetriever(parts, **params)
+    elif kind == "rerank":
+        from proviso.retrieve.rerank import RerankRetriever
+
+        r = RerankRetriever(conn, build_retriever(params.pop("inner"), conn), **params)
     else:
         raise ValueError(f"모르는 검색기 종류: {kind!r}")
     if spec.get("expand_aliases"):
