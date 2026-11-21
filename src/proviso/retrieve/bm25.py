@@ -21,7 +21,8 @@ class BM25Retriever:
     name = "bm25"
 
     def __init__(self, conn, tokenizer: str = "morph", header: bool = True, as_of: str | date = "2026-11-20",
-                 k1: float = 1.2, b: float = 0.75):
+                 k1: float = 1.2, b: float = 0.75, articles: dict[str, list[dict]] | None = None):
+        """articles를 주면 DB 대신 그 조문으로 색인한다(CI 점수 검사용 말뭉치 파일)."""
         if tokenizer not in TOKENIZERS:
             raise ValueError(f"모르는 토크나이저: {tokenizer!r} (가능: {sorted(TOKENIZERS)})")
         self._tok = TOKENIZERS[tokenizer]
@@ -30,7 +31,9 @@ class BM25Retriever:
         t0 = time.perf_counter()
         self._docs: list[tuple[str, dict]] = []
         texts = []
-        for doc_id, arts in current_articles(conn, self._as_of).items():
+        if articles is None:
+            articles = current_articles(conn, self._as_of)
+        for doc_id, arts in articles.items():
             for a in arts:
                 self._docs.append((doc_id, a))
                 texts.append((header_for(a) if header else "") + a["text"])

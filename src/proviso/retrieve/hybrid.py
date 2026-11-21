@@ -48,6 +48,10 @@ class RRFRetriever:
 def load_aliases(conn) -> list[tuple[str, str]]:
     """(약칭, 정식 법령명). 정식 명칭과 같은 별칭, 띄어쓰기만 다른 별칭은 뺀다. 긴 것부터(겹치면 긴 것이 이긴다)."""
     rows = conn.execute("SELECT a.alias, d.title FROM law_aliases a JOIN documents d USING (doc_id)").fetchall()
+    return alias_pairs(rows)
+
+
+def alias_pairs(rows: list[tuple[str, str]]) -> list[tuple[str, str]]:
     titles = {t for _, t in rows}
     out = {(a, t) for a, t in rows if a.replace(" ", "") != t.replace(" ", "")}
     for a, t in list(out):  # "금소법 시행령"처럼 법률 약칭 + 시행령 → 시행령 정식 명칭
@@ -72,9 +76,9 @@ class AliasExpander:
 
     name = "aliases"
 
-    def __init__(self, conn, inner):
+    def __init__(self, conn, inner, aliases: list[tuple[str, str]] | None = None):
         self._inner = inner
-        self._aliases = load_aliases(conn)
+        self._aliases = aliases if aliases is not None else load_aliases(conn)
 
     def describe(self) -> dict[str, Any]:
         return {**self._inner.describe(), "query": {"expand_aliases": True, "aliases": len(self._aliases)}}

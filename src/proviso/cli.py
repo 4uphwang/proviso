@@ -122,6 +122,26 @@ def _compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _gate_export(args: argparse.Namespace) -> int:
+    from datetime import date
+
+    from proviso.db.connect import connect
+    from proviso.eval.gate import CORPUS, export_corpus
+
+    with connect() as conn:
+        n = export_corpus(conn, date.fromisoformat(args.as_of))
+    print(f"조문 {n}개 → {CORPUS}")
+    return 0
+
+
+def _gate_check(args: argparse.Namespace) -> int:
+    from proviso.eval.gate import check
+
+    ok, msg = check(update=args.update)
+    print(msg)
+    return 0 if ok else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="proviso", description="금융 법령 근거 에이전트")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -163,6 +183,15 @@ def main(argv: list[str] | None = None) -> int:
     cmp.add_argument("--out", help="비교표를 md 파일로도 저장")
     cmp.add_argument("--allow-snapshot-mismatch", action="store_true")
     cmp.set_defaults(func=_compare)
+
+    gt = sub.add_parser("gate", help="CI 점수 검사(모델·DB 없이 BM25 + 약칭 확장)")
+    gt_sub = gt.add_subparsers(dest="gate_command", required=True)
+    gte = gt_sub.add_parser("export", help="현행 조문을 말뭉치 파일로 빼기(DB 필요)")
+    gte.add_argument("--as-of", required=True, help="기준일 YYYY-MM-DD")
+    gte.set_defaults(func=_gate_export)
+    gtc = gt_sub.add_parser("check", help="recall@10이 기준값 − 허용폭 아래면 실패")
+    gtc.add_argument("--update", action="store_true", help="지금 점수를 새 기준값으로 저장")
+    gtc.set_defaults(func=_gate_check)
 
     args = parser.parse_args(argv)
     return args.func(args)

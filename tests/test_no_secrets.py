@@ -1,4 +1,5 @@
 """저장소에 들어가는 파일에 법령 API 인증값(OC)이 남지 않았는지 확인한다."""
+import gzip
 import re
 import subprocess
 
@@ -12,7 +13,9 @@ def test_tracked_files_have_no_oc_value():
     leaked = []
     for f in files:
         try:
-            text = (ROOT / f).read_text(encoding="utf-8")
+            path = ROOT / f
+            text = (gzip.decompress(path.read_bytes()).decode("utf-8") if f.endswith(".gz")
+                    else path.read_text(encoding="utf-8"))
         except (UnicodeDecodeError, FileNotFoundError):
             continue
         if OC_IN_URL.search(text):

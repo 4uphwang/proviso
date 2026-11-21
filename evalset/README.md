@@ -46,3 +46,4 @@ proviso compare runs/<A>.json runs/<B>.json --out runs/<A>_vs_<B>.md
 - 신뢰구간: 문항 단위 부트스트랩 1,000회(95%). 비교는 짝지은 부트스트랩으로 B − A 구간이 0을 넘는지 본다.
 - 결과 파일(`runs/*.json`, git 제외)에는 설정, 검색기 설명, 데이터 스냅샷 ID, 평가셋 해시, 커밋, 문항별 순위·지연이 들어간다. `compare`는 평가셋·split·문항이 다르면 거부하고, 스냅샷이 다르면 `--allow-snapshot-mismatch` 없이는 거부한다.
 - `random` 검색기(우연 수준): test recall@10 0.009, recall@20 0.017.
+- CI 점수 검사(`proviso gate check`, `tests/test_gate.py`): 모델·DB 없이 형태소 BM25 + 약칭 확장으로 시점 문항을 뺀 905문항을 돌려, recall@10이 `ci_gate.json`의 기준값 − 허용폭(0.01) 아래면 실패한다. 말뭉치는 `tests/fixtures/corpus.jsonl.gz`(현행 조문, 출처 법제처). 데이터를 다시 뽑으면 `proviso gate export --as-of <날짜>` 후 `proviso gate check --update`.

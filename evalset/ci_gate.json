@@ -1,0 +1,15 @@
+{
+  "retriever": {
+    "type": "bm25",
+    "params": {
+      "tokenizer": "morph",
+      "header": true
+    },
+    "expand_aliases": true
+  },
+  "n": 905,
+  "snapshot_id": "20261120T144052-a0fb33dd",
+  "recall@10": 0.8066,
+  "mrr@10": 0.5325,
+  "tolerance": 0.01
+}
