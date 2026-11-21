@@ -27,5 +27,5 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev]"
       - run: proviso db init
-      - run: proviso evalset check evalset/examples.jsonl
+      - run: proviso evalset check evalset/examples.jsonl evalset/retrieval.jsonl
       - run: pytest -v
