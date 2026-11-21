@@ -36,15 +36,26 @@ class DenseRetriever:
                 "uses_as_of": False}
 
     def search(self, question: str, *, k: int, as_of: date | None = None) -> list[Hit]:
+        """서로 다른 조문이 k개 모일 때까지 가까운 조각부터 담는다.
+
+        청킹 방식마다 조각 하나에 든 조문 수가 달라서(고정 길이는 여럿, 조 단위는 하나, 긴 조문은 여러 조각),
+        '조각 k개'가 아니라 '조문 k개'로 맞춰야 방식 간 비교가 공정하다.
+        """
         q = self._embedder.encode([question])[0]
         qv = "[" + ",".join(f"{x:.6f}" for x in q) + "]"
         rows = self._conn.execute(
             "SELECT chunk_no, doc_id, articles, 1 - (embedding <=> %s::vector) FROM index_chunks"
             " WHERE index_id = %s ORDER BY embedding <=> %s::vector LIMIT %s",
-            (qv, self._index_id, qv, k)).fetchall()
-        hits = []
+            (qv, self._index_id, qv, k * 5)).fetchall()
+        hits: list[Hit] = []
+        seen: set[tuple] = set()
         for chunk_no, doc_id, arts, score in rows:
+            if len(seen) >= k:
+                break
             for a in arts:
+                if len(seen) >= k and (doc_id, a["article_no"], a["valid_from"]) not in seen:
+                    break
+                seen.add((doc_id, a["article_no"], a["valid_from"]))
                 hits.append(Hit(chunk_id=f"{self._index_id}#{chunk_no}", doc_id=doc_id, article_no=a["article_no"],
                                 valid_from=date.fromisoformat(a["valid_from"]),
                                 valid_to=date.fromisoformat(a["valid_to"]) if a["valid_to"] else None,

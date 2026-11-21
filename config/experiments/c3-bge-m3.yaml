@@ -6,6 +6,6 @@ retriever:
     index: c3-bge-m3
 evalset: evalset/retrieval.jsonl
 split: dev
-k: 20
+k: 20            # 서로 다른 조문 20개(조각 수가 아니라 조문 수로 맞춤)
 repeats: 1
 use_as_of: true  # 넘기지만 이 검색기는 쓰지 않는다
