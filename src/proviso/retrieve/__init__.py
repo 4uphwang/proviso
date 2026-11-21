@@ -47,8 +47,16 @@ def build_retriever(spec: dict[str, Any], conn) -> Retriever:
         from proviso.retrieve.rerank import RerankRetriever
 
         r = RerankRetriever(conn, build_retriever(params.pop("inner"), conn), **params)
+    elif kind == "graph":
+        from proviso.retrieve.graph import GraphExpandRetriever
+
+        r = GraphExpandRetriever(conn, build_retriever(params.pop("inner"), conn), **params)
     else:
         raise ValueError(f"모르는 검색기 종류: {kind!r}")
+    if spec.get("query_llm"):  # {mode: rewrite|hyde, model}. 약칭 확장보다 안쪽(약칭을 펼친 질문을 LLM이 받는다)
+        from proviso.retrieve.query_llm import LLMQueryTransform
+
+        r = LLMQueryTransform(r, **spec["query_llm"])
     if spec.get("expand_aliases"):
         from proviso.retrieve.hybrid import AliasExpander
 

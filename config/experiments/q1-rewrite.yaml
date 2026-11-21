@@ -1,0 +1,17 @@
+# 4장 Q1: 3장 최종(RRF + 약칭) 앞에서 로컬 LLM이 질문을 법령 용어로 바꿔 원래 질문 뒤에 붙인다(두 검색 모두)
+name: q1-rewrite
+retriever:
+  type: rrf
+  expand_aliases: true
+  query_llm: {mode: rewrite, model: "qwen3.5:4b"}
+  params:
+    k_rrf: 60
+    depth: 100
+    parts:
+      dense: {type: dense, params: {index: c3c1-bge-m3}}
+      bm25: {type: bm25, params: {tokenizer: morph, header: true, as_of: "2026-11-20"}}
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 20
+repeats: 1
+use_as_of: true

@@ -8,3 +8,4 @@ data/processed/
 data/state/
 runs/**/*.json
 data/evalset_work/
+data/cache/

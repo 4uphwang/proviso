@@ -1,0 +1,22 @@
+# 4장 G1: 3장 최종(RRF + 약칭) 상위 5개와 위임·참조로 이어진 조문의 순위를 올린다(weight 0.5)
+name: g1-graph-w05
+retriever:
+  type: graph
+  params:
+    seeds: 5
+    weight: 0.5
+    as_of: "2026-11-20"
+    inner:
+      type: rrf
+      expand_aliases: true
+      params:
+        k_rrf: 60
+        depth: 100
+        parts:
+          dense: {type: dense, params: {index: c3c1-bge-m3}}
+          bm25: {type: bm25, params: {tokenizer: morph, header: true, as_of: "2026-11-20"}}
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 20
+repeats: 1
+use_as_of: true
