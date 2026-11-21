@@ -1,0 +1,12 @@
+# 3장 Q3 분석용: 벡터(c3c1) 단독 + 약칭 확장
+name: c3c1-bge-m3-alias
+retriever:
+  type: dense
+  expand_aliases: true
+  params:
+    index: c3c1-bge-m3
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 20            # 서로 다른 조문 20개(조각 수가 아니라 조문 수로 맞춤)
+repeats: 1
+use_as_of: true  # 넘기지만 이 검색기는 쓰지 않는다

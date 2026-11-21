@@ -1,0 +1,16 @@
+# 3장 Q3: F1(RRF) 앞에서 약칭을 정식 법령명으로 펼친다("금소법" → "금융소비자 보호에 관한 법률")
+name: rrf-c3c1-bm25-alias
+retriever:
+  type: rrf
+  expand_aliases: true
+  params:
+    k_rrf: 60
+    depth: 100     # 검색기마다 서로 다른 조문 100개를 받아 합친다
+    parts:
+      dense: {type: dense, params: {index: c3c1-bge-m3}}
+      bm25: {type: bm25, params: {tokenizer: morph, header: true, as_of: "2026-11-20"}}
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 20
+repeats: 1
+use_as_of: true  # 넘기지만 두 검색기 모두 쓰지 않는다

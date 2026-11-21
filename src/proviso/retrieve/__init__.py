@@ -23,14 +23,30 @@ class Retriever(Protocol):
 
 
 def build_retriever(spec: dict[str, Any], conn) -> Retriever:
+    """spec = {type, params, expand_aliases?}. type: random | dense | bm25 | rrf(params.parts = {이름: spec})."""
     kind = spec.get("type")
-    params = spec.get("params") or {}
+    params = dict(spec.get("params") or {})
     if kind == "random":
         from proviso.retrieve.random_baseline import RandomRetriever
 
-        return RandomRetriever(conn, **params)
-    if kind == "dense":
+        r = RandomRetriever(conn, **params)
+    elif kind == "dense":
         from proviso.retrieve.dense import DenseRetriever
 
-        return DenseRetriever(conn, **params)
-    raise ValueError(f"모르는 검색기 종류: {kind!r}")
+        r = DenseRetriever(conn, **params)
+    elif kind == "bm25":
+        from proviso.retrieve.bm25 import BM25Retriever
+
+        r = BM25Retriever(conn, **params)
+    elif kind == "rrf":
+        from proviso.retrieve.hybrid import RRFRetriever
+
+        parts = [(name, build_retriever(s, conn)) for name, s in params.pop("parts").items()]
+        r = RRFRetriever(parts, **params)
+    else:
+        raise ValueError(f"모르는 검색기 종류: {kind!r}")
+    if spec.get("expand_aliases"):
+        from proviso.retrieve.hybrid import AliasExpander
+
+        r = AliasExpander(conn, r)
+    return r

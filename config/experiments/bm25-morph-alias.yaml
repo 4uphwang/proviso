@@ -1,0 +1,11 @@
+# 3장 Q3 분석용: 형태소 BM25 단독 + 약칭 확장
+name: bm25-morph-alias
+retriever:
+  type: bm25
+  expand_aliases: true
+  params: {tokenizer: morph, header: true, as_of: "2026-11-20"}
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 20
+repeats: 1
+use_as_of: true  # 넘기지만 이 검색기는 쓰지 않는다
