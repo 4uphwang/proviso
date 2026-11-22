@@ -1,9 +1,12 @@
 """재정렬(R1), 질의 가공(Q1·Q2), 그래프 확장(G1)의 순서 규칙. 모델 대신 가짜 점수기·LLM을 쓴다."""
 
+import json
 from datetime import date
 
+import httpx
+
 from proviso.eval.metrics import Hit
-from proviso.retrieve.query_llm import LLMQueryTransform
+from proviso.retrieve.query_llm import RUNAWAY_CAP, LLMQueryTransform, OllamaClient
 from proviso.retrieve.rerank import RerankRetriever
 
 D = date(2020, 1, 1)
@@ -59,6 +62,26 @@ def test_query_transform_keeps_original_question():
     t.search("카드 잃어버림", k=1)
     assert inner.seen == ["카드 잃어버림\n법률 용어"]
     assert t.describe()["query_llm"]["mode"] == "rewrite"
+
+
+def test_runaway_generation_is_cut_and_recorded(tmp_path, monkeypatch):
+    """시간 초과면 길이를 제한해 한 번 더 받고, 원래 키로 저장하되 끊었다고 남긴다."""
+    monkeypatch.setattr("proviso.retrieve.query_llm.CACHE", tmp_path)
+    seen = []
+
+    def handler(req):
+        seen.append(json.loads(req.content)["options"])
+        if len(seen) == 1:
+            raise httpx.ReadTimeout("timed out")
+        return httpx.Response(200, json={"message": {"content": "제1조, 제2조"}})
+
+    c = OllamaClient("m")
+    c._http = httpx.Client(base_url="http://test", transport=httpx.MockTransport(handler))
+    assert c.generate("q") == "제1조, 제2조"
+    assert "num_predict" not in seen[0] and seen[1]["num_predict"] == RUNAWAY_CAP
+    (f,) = tmp_path.glob("*.json")
+    assert json.loads(f.read_text())["truncated"] == RUNAWAY_CAP
+    assert c.generate("q") == "제1조, 제2조" and len(seen) == 2  # 두 번째는 캐시
 
 
 def test_route_skips_rerank_when_first_stage_is_confident():

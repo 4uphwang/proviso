@@ -23,6 +23,8 @@ from proviso.eval.metrics import Hit
 
 CACHE = ROOT / "data" / "cache" / "llm"
 OLLAMA = "http://localhost:11434"
+# 같은 말을 끝없이 되풀이해 시간 초과가 난 응답만 이 길이에서 끊어 다시 받는다. 정상으로 끝난 응답은 모두 이보다 짧아 바뀌지 않는다
+RUNAWAY_CAP = 1000
 
 PROMPTS = {
     "rewrite": (
@@ -38,9 +40,14 @@ PROMPTS = {
 
 class OllamaClient:
     def __init__(self, model: str, temperature: float = 0.0, seed: int = 0, num_ctx: int = 4096,
-                 host: str = OLLAMA, timeout: float = 120.0):
+                 host: str = OLLAMA, timeout: float = 120.0, num_predict: int | None = None,
+                 presence_penalty: float | None = None):
         self.model = model
         self.options = {"temperature": temperature, "seed": seed, "num_ctx": num_ctx}
+        if num_predict is not None:  # 4장 캐시 키가 바뀌지 않게, 줄 때만 넣는다
+            self.options["num_predict"] = num_predict
+        if presence_penalty is not None:  # 안 주면 모델 기본값을 쓴다. qwen3.5는 1.5라서 온도 0에서도 같은 말을 피한다(5장)
+            self.options["presence_penalty"] = presence_penalty
         self._http = httpx.Client(base_url=host, timeout=timeout)
         self.last_cached = False
         self.last_seconds = 0.0
@@ -54,17 +61,27 @@ class OllamaClient:
             self.last_seconds = d["seconds"]
             return d["text"]
         t0 = time.perf_counter()
-        r = self._http.post("/api/chat", json={"model": self.model, "stream": False, "think": False,
-                                               "options": self.options,
-                                               "messages": [{"role": "user", "content": prompt}]})
-        r.raise_for_status()
-        text = r.json()["message"]["content"].strip()
+        truncated = False
+        try:
+            text = self._chat(prompt, self.options)
+        except httpx.ReadTimeout:
+            if "num_predict" in self.options:
+                raise
+            truncated = True
+            text = self._chat(prompt, {**self.options, "num_predict": RUNAWAY_CAP})
         self.last_cached = False
         self.last_seconds = round(time.perf_counter() - t0, 3)
         CACHE.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"model": self.model, "prompt": prompt, "options": self.options, "text": text,
-                                    "seconds": self.last_seconds}, ensure_ascii=False), encoding="utf-8")
+                                    "seconds": self.last_seconds, **({"truncated": RUNAWAY_CAP} if truncated else {})},
+                                   ensure_ascii=False), encoding="utf-8")
         return text
+
+    def _chat(self, prompt: str, options: dict) -> str:
+        r = self._http.post("/api/chat", json={"model": self.model, "stream": False, "think": False, "options": options,
+                                               "messages": [{"role": "user", "content": prompt}]})
+        r.raise_for_status()
+        return r.json()["message"]["content"].strip()
 
 
 class LLMQueryTransform:
@@ -72,12 +89,13 @@ class LLMQueryTransform:
 
     name = "llm_query"
 
-    def __init__(self, inner, *, mode: str, model: str = "qwen3.5:4b", client: OllamaClient | None = None):
+    def __init__(self, inner, *, mode: str, model: str = "qwen3.5:4b", client: OllamaClient | None = None,
+                 presence_penalty: float | None = None):
         if mode not in PROMPTS:
             raise ValueError(f"모르는 질의 가공: {mode!r}")
         self._inner = inner
         self._mode = mode
-        self._client = client or OllamaClient(model)
+        self._client = client or OllamaClient(model, presence_penalty=presence_penalty)
         self.llm_seconds: list[float] = []
 
     def describe(self) -> dict[str, Any]:
