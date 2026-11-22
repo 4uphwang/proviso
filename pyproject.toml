@@ -31,4 +31,5 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]  # tests.test_load fixture를 다른 테스트에서 가져다 쓴다
 markers = ["db: Postgres가 떠 있어야 하는 테스트(DATABASE_URL). 없으면 건너뛴다"]
