@@ -168,6 +168,49 @@ def _graph_check(args: argparse.Namespace) -> int:
     return 0 if all(a == b for _, a, b in rows) else 1
 
 
+def _answer_run(args: argparse.Namespace) -> int:
+    import yaml
+
+    from proviso.answer.run import run
+    from proviso.db.connect import connect
+
+    retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
+    with connect() as conn:
+        path = run(conn, evalset=Path(args.evalset), split=args.split, arms=args.arms.split(","), model=args.model,
+                   k=args.k, retriever_cfg=retr, name=args.name, limit=args.limit)
+    print(f"결과: {path}")
+    return 0
+
+
+def _answer_ask(args: argparse.Namespace) -> int:
+    import yaml
+
+    from proviso.answer.run import ask
+    from proviso.db.connect import connect
+
+    retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
+    with connect() as conn:
+        print(ask(conn, args.question, retriever_cfg=retr, model=args.model, k=args.k))
+    return 0
+
+
+def _answer_report(args: argparse.Namespace) -> int:
+    import json
+
+    from proviso.answer.run import load_agent_items, rescore
+    from proviso.answer.score import report
+
+    run_ = json.loads(open(args.run, encoding="utf-8").read())
+    items = {i.id: i for i in load_agent_items(Path(run_["evalset"]["path"]), "all")}
+    if args.rescore:
+        from proviso.db.connect import connect
+
+        with connect() as conn:
+            run_ = rescore(conn, Path(args.run), items)
+    print(report(run_, items, args.arms.split(",")))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="proviso", description="금융 법령 근거 에이전트")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -226,6 +269,30 @@ def main(argv: list[str] | None = None) -> int:
     gre.set_defaults(func=_graph_export)
     grc = gr_sub.add_parser("check", help="OWL 2 RL 추론 뒤 SPARQL 답을 SQL 답과 대조")
     grc.set_defaults(func=_graph_check)
+
+    an = sub.add_parser("answer", help="답변 생성·채점(5장, 로컬 LLM)")
+    an_sub = an.add_subparsers(dest="answer_command", required=True)
+    anr = an_sub.add_parser("run", help="자료(검색 결과) + 질문 → 답. runs/에 저장")
+    anr.add_argument("--evalset", default="evalset/agent.jsonl")
+    anr.add_argument("--split", default="dev", choices=["dev", "test", "all"])
+    anr.add_argument("--arms", default="plain,cite,refuse,verify")
+    anr.add_argument("--model", default="qwen3.5:4b")
+    anr.add_argument("--k", type=int, default=5)
+    anr.add_argument("--retriever-config", default="config/experiments/rerank30.yaml")
+    anr.add_argument("--name", default="rerank30")
+    anr.add_argument("--limit", type=int)
+    anr.set_defaults(func=_answer_run)
+    ana = an_sub.add_parser("ask", help="질문 하나에 답한다(인용 확인 + 고지)")
+    ana.add_argument("question")
+    ana.add_argument("--model", default="qwen3.5:4b")
+    ana.add_argument("--k", type=int, default=5)
+    ana.add_argument("--retriever-config", default="config/experiments/rerank30.yaml")
+    ana.set_defaults(func=_answer_ask)
+    anp = an_sub.add_parser("report", help="실행 결과 채점표")
+    anp.add_argument("run")
+    anp.add_argument("--arms", default="plain,cite,refuse,verify")
+    anp.add_argument("--rescore", action="store_true", help="저장된 답을 지금 채점기로 다시 채점한다(LLM 호출 없음)")
+    anp.set_defaults(func=_answer_report)
 
     args = parser.parse_args(argv)
     return args.func(args)

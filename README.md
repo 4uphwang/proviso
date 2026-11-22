@@ -20,6 +20,15 @@
 
 시점 문항(65개)은 7장 전까지 0점이라 모든 행에 포함된 채로 낮게 잡혀 있습니다. 관계 그래프(위임·참조·버전, RDF/OWL)는 [그래프 스키마](docs/graph-schema.md)에 있습니다.
 
+5장부터는 검색이 아니라 **답변**을 잽니다(에이전트 세트 test 171문항, 로컬 4B 모델, 비용 0원).
+
+| 장 | 문제 → 처방 | 환각 인용이 있는 답 | 거절 정확도 (n=33) | 과잉 거절 (n=106) |
+|---|---|---:|---:|---:|
+| [5](docs/chapters/05-grounding.md) | 자유 답변(자료만 줌) | 0.053 | 0.424 | 0.038 |
+| | 없는 조문을 인용한다 → 인용 형식 + 거절 지시 | 0.023 | 0.727 | 0.038 |
+
+거절이 늘어난 것은 분명하지만(95% 구간 [+0.121, +0.485]) 환각 인용의 차이는 구간이 0을 포함합니다([−0.070, +0.006]). 인용 형식만 더했을 때는 0.053 → 0.012로 분명히 줄었습니다. 평가셋은 아직 사람 검수 전입니다.
+
 ## 실행
 ```bash
 python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
@@ -28,6 +37,7 @@ docker compose up -d          # Postgres 17 + pgvector, 포트 5433
 .venv/bin/proviso db init
 .venv/bin/proviso evalset check evalset/examples.jsonl
 .venv/bin/pytest
+.venv/bin/proviso answer ask "온라인소액투자중개 등록하려면 자기자본이 얼마 필요한가요?"   # 색인과 Ollama(qwen3.5:4b) 필요
 ```
 
 ## 문서
