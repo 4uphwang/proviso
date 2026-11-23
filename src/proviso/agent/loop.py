@@ -7,11 +7,11 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
-from proviso.agent.tools import SPECS, Key, Toolbox
+from proviso.agent.tools import SPECS, Key, Result, Toolbox
 from proviso.answer.run import CITE, REFUSE
 from proviso.config import ROOT
 
@@ -78,17 +78,19 @@ class Trace:
 
 
 def run_agent(question: str, llm, tools: Toolbox, *, system: str = SYSTEM, max_turns: int = 6, max_calls: int = 8,
-              token_limit: int = 11000, seed_search: bool = False) -> Trace:
+              token_limit: int = 11000, seed_search: bool = False,
+              seed_more: Callable[[str, list[Key]], Result | None] | None = None) -> Trace:
     """max_turns번까지 도구를 쓰고, 넘거나 자료가 길어지면 도구 없이 답하게 한다.
 
     seed_search: 모델에게 묻기 전에 코드가 질문 그대로 한 번 검색해 결과를 먼저 준다.
+    seed_more: 그 첫 검색 결과(보인 조문)를 받아 코드가 더 붙일 자료. 같은 도구 결과에 이어 붙인다.
     """
     laws = ", ".join(sorted({a["doc_title"] for a in tools.law.articles.values()}))
     messages: list[dict] = [{"role": "system", "content": system.format(laws=laws)}, {"role": "user", "content": question}]
     tr = Trace()
     asked: set[str] = set()
 
-    def use(name: str, args: Any) -> bool:
+    def use(name: str, args: Any, more=None) -> bool:
         """도구 하나를 실행해 대화와 기록에 남긴다. 이미 한 호출이면 False."""
         sig = json.dumps([name, args], ensure_ascii=False, sort_keys=True)
         repeated = sig in asked
@@ -98,7 +100,10 @@ def run_agent(question: str, llm, tools: Toolbox, *, system: str = SYSTEM, max_t
             text, shown, err = "이미 같은 호출로 본 결과다. 다른 도구를 쓰거나 답하라.", [], True
         else:
             r = tools.call(name, args, question)
-            text, shown, err = r.text, r.shown, r.error
+            text, shown, err = r.text, list(r.shown), r.error
+            add = more(question, shown) if more and not err else None
+            if add:
+                text, shown = text + "\n\n" + add.text, shown + [k for k in add.shown if k not in shown]
         sec = round(time.perf_counter() - t0, 3)
         tr.seconds += sec
         tr.steps.append({"tool": name, "args": args, "chars": len(text), "shown": shown, "error": err, "repeat": repeated, "seconds": sec})
@@ -118,7 +123,7 @@ def run_agent(question: str, llm, tools: Toolbox, *, system: str = SYSTEM, max_t
 
     if seed_search:
         messages.append({"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": question}}}]})
-        use("search", {"query": question})
+        use("search", {"query": question}, seed_more)
     for _ in range(max_turns):
         rep = ask(SPECS)
         if not rep.tool_calls:

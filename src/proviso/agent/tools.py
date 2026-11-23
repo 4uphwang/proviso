@@ -205,6 +205,14 @@ class Toolbox:
         more = [self.law.short(k) for _, k in links[4:12]]
         return Result("\n\n".join(body) + (f"\n\n더 있음: {', '.join(more)}" if more else ""), [k for _, k in links[:4]])
 
+    def attach(self, keys: list[Key], question: str, limit: int = 1500) -> Result | None:
+        """코드가 고른 조문의 본문을 붙인다(모델이 부른 도구가 아니다)."""
+        keys = [k for k in keys if k in self.law.articles]
+        if not keys:
+            return None
+        return Result("이어진 조문(위임·참조):\n\n" + "\n\n".join(
+            f"{self.law.label(k)}\n{focus(self.law.articles[k]['text'], question, limit)}" for k in keys), keys)
+
     def define_term(self, term: str, law: str = "", question: str = "") -> Result:
         hit = self.names.ending(law) if law else None
         bare = re.sub(r"\s+", "", term.strip("\"“”' "))

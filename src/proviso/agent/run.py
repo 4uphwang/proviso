@@ -8,6 +8,7 @@
 - short_follow: short + follow
 - agent: 모델이 도구 4개를 골라 쓴다
 - agent_seed: 질문 그대로 한 번 검색한 결과를 먼저 주고 시작한다
+- agent_seed_follow: agent_seed의 첫 검색 결과에 follow처럼 이어진 조문 3개를 코드가 붙인다(6장 test 뒤 추가)
 - agent_links: agent에서 검색 결과마다 이어진 조문 이름을 함께 보여 준다(12문항 시험에서 검색만 하고 끝내 추가)
 """
 
@@ -27,7 +28,7 @@ from proviso.eval.schema import EvalItem
 
 TODAY = date(2026, 11, 20)
 FIXED = ("fixed", "focus", "follow", "focus_follow", "short", "short_follow")
-AGENT = ("agent", "agent_seed", "agent_links")
+AGENT = ("agent", "agent_seed", "agent_links", "agent_seed_follow")
 EXTRA_CHARS = 1500  # 더한 조문 하나의 상한
 SHORT_CHARS = 1000  # 검색 도구가 조문 하나에 보여 주는 길이와 같다
 
@@ -120,6 +121,12 @@ def fixed_arts(arm: str, question: str, base: list[dict], law: Law, retr: Retrie
     return arts
 
 
+def linked_top(question: str, shown: list[Key], law: Law, retr: Retriever, n: int = 3) -> list[Key]:
+    """상위 3개 조문과 이어진 조문 중 재정렬 점수 상위 n개(follow와 같은 규칙)."""
+    cand = [k for s in shown[:3] for _, k in law.linked(s) if k not in shown]
+    return retr.rank(question, list(dict.fromkeys(cand)), law)[:n]
+
+
 def flags(it: EvalItem, shown: set[Key], ctx: str) -> dict:
     gold = {(g.doc_id, g.article) for g in it.gold}
     flat = "".join(ctx.split())
@@ -156,7 +163,9 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
             shown = {(a["doc_id"], a["article"]) for a in arts}
             extra = {"seconds": plain.last_seconds + contexts[it.id]["seconds"], "llm_seconds": plain.last_seconds}
         else:
-            t = run_agent(it.question, llm, box, seed_search=arm == "agent_seed")
+            t = run_agent(it.question, llm, box, seed_search=arm in ("agent_seed", "agent_seed_follow"),
+                          seed_more=(lambda q, shown: box.attach(linked_top(q, shown, law, retr), q, EXTRA_CHARS))
+                          if arm == "agent_seed_follow" else None)
             answer, ctx, shown = t.answer, t.context, set(t.shown)
             search_sec = sum(retr.seconds(s["args"]["query"]) for s in t.steps
                              if s.get("tool") == "search" and not s["repeat"] and isinstance(s["args"], dict) and "query" in s["args"])

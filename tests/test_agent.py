@@ -96,3 +96,12 @@ def test_seed_search_runs_before_model():
     llm = Script(Reply("답", []))
     t = run_agent("q", llm, box(), seed_search=True)
     assert t.tool_calls == ["search"] and llm.seen[0][0][-1]["role"] == "tool"
+
+
+def test_seed_more_appends_to_first_search():
+    llm = Script(Reply("답", []))
+    b = box()
+    t = run_agent("자기자본", llm, b, seed_search=True, seed_more=lambda q, shown: b.attach([("가상법 시행령", "제3조")], q))
+    assert t.tool_calls == ["search"] and t.shown == [("가상법", "제5조"), ("가상법 시행령", "제3조")]
+    assert "5억원" in llm.seen[0][0][-1]["content"] and "이어진 조문" in t.context
+    assert b.attach([("없는법", "제1조")], "q") is None
