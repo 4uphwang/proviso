@@ -207,7 +207,7 @@ def version_flag(it: EvalItem, shown: set[Key], law: Law, period: dict) -> bool 
 
 def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg: dict, limit: int | None = None,
         ids: set[str] | None = None, progress=print, token_limit: int = TOKEN_LIMIT, max_tokens: int = 500,
-        repeat: int = 0) -> Path:
+        repeat: int = 0, guard: bool = False) -> Path:
     """token_limit(9장): 대화가 이만큼 차면 도구를 그만 쓰고 답하게 한다. 기본값은 로컬 문맥 창(16K)에 맞춘 값이다."""
     asm = assembly(arm)
     if arm not in FIXED + AGENT and not asm:
@@ -236,8 +236,16 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
     fixed = {it.id: fixed_arts(arm, it.question, contexts[it.id]["arts"], law, retr) for it in items} if arm in FIXED else {}
     if arm in FIXED:  # 자료를 다 고른 뒤에 답한다
         retr.free()
+    from proviso.answer.guard import REFUSAL, screen
+
     for n, it in enumerate(items, 1):
-        if arm in FIXED:
+        kind = screen(it.question) if guard else None
+        when = None
+        if kind:  # 거절 판별(answer/guard.py): 모델을 부르지 않고 정해진 문장으로 거절한다
+            answer, ctx, shown = REFUSAL[kind], "", set()
+            extra = {"seconds": 0.0, "llm_seconds": 0.0, "stop": "guard", "steps": [], "tools": [], "prompt_tokens": 0,
+                     "output_tokens": 0, "cost": 0.0, "guard": kind}
+        elif arm in FIXED:
             arts = fixed[it.id]
             ctx = context_text(arts)
             answer = plain.generate(PROMPTS["refuse"].format(context=ctx) + f"질문: {it.question}")
@@ -275,8 +283,10 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
         tag += f"-o{max_tokens}"
     if repeat:
         tag += f"-r{repeat}"
+    if guard:
+        tag += "-g"
     path = RUNS_DIR / f"{datetime.now(timezone.utc):%Y%m%dT%H%M%S}_agent-{arm}-{split}{tag}.json"
-    path.write_text(json.dumps({"run_id": path.stem, "kind": "agent", "arm": arm, "model": model, "options": llm.options, "token_limit": token_limit,
+    path.write_text(json.dumps({"run_id": path.stem, "kind": "agent", "arm": arm, "model": model, "options": llm.options, "token_limit": token_limit, "guard": guard,
                                 "split": split, "k": 5, "evalset": {"path": str(evalset), "hash": file_sha256(evalset)},
                                 "retriever": retriever_cfg, "snapshot_id": latest_snapshot(conn), "git": git_state(),
                                 "system": SYSTEM, "finish": FINISH, "tools": SPECS, "per_item": recs}, ensure_ascii=False, default=list),

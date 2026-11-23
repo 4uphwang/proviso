@@ -17,6 +17,11 @@ def ask(conn, question: str, *, retriever_cfg: dict, model: str, seed_search: bo
     """(사용자에게 보일 글, trace_id). 검색 캐시는 평가용과 나눈다."""
     law, names = load_law(conn, TODAY), law_names(conn)
     retr = Retriever(conn, retriever_cfg, ROOT / "data" / "cache" / "ask_search.json")
+    from proviso.answer.guard import REFUSAL, screen
+
+    kind = screen(question)  # 10장: 개인 사안·투자 조언은 모델 전에 거절한다
+    if kind:
+        return present(REFUSAL[kind], []), ""
     when, law_at, box, system = as_of_setup(conn, question, names, retr, {})
     tr = run_agent(question, OllamaChat(model), box or Toolbox(law, names, retr.search), system=system, seed_search=seed_search)
     r = judge(tr.answer, set(tr.shown), set(law.articles) | set((law_at or law).articles), tr.context, names)

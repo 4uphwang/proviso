@@ -50,6 +50,8 @@
 
 DeepSeek V4 Flash는 질문당 약 $0.001로 세 지표 모두 4b보다 높았습니다(95% 구간이 0을 벗어남). 가장 싼 Solar mini4는 근거는 좋지만 개인 사안·투자 조언 질문 33개 중 17개에 답했습니다. 로컬 9b는 4b보다 뚜렷하게 낫지 않았고, gpt-oss-20b는 이 작업에 맞지 않았습니다. API 모델은 temperature 0에서도 답이 매번 달라 dev에서 3회씩 돌렸습니다.
 
+[10장](docs/chapters/10-refusal-guard.md)에서는 개인 사안 판단과 투자 조언 질문을 모델을 부르기 전에 규칙으로 걸렀습니다. 비용 0원으로 test 거절 정확도가 4b 0.697 → 0.848, Solar mini4 0.485 → 0.848, GLM-5.3 Flash 0.879 → 1.000, DeepSeek V4 Flash 0.909 → 1.000이 됐고, 정상 질문의 답은 바뀌지 않았습니다(검색 세트 정상 질문 700개 중 2개를 잘못 막음).
+
 ## 실행
 ```bash
 python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"

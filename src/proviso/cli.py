@@ -222,7 +222,8 @@ def _agent_run(args: argparse.Namespace) -> int:
         for arm in args.arms.split(","):
             path = run(conn, evalset=Path(args.evalset), split=args.split, arm=arm, model=args.model, retriever_cfg=retr,
                        limit=args.limit, ids=set(args.ids.split(",")) if args.ids else None, token_limit=args.token_limit,
-                       max_tokens=args.max_tokens, repeat=args.repeat)
+                       max_tokens=args.max_tokens, repeat=args.repeat,
+                       guard=args.guard)
             print(f"결과: {path}", flush=True)
     return 0
 
@@ -250,7 +251,7 @@ def _agent_ask(args: argparse.Namespace) -> int:
     retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
     with connect() as conn:
         text, tid = ask(conn, args.question, retriever_cfg=retr, model=args.model, seed_search=not args.no_seed)
-    print(f"{text}\n\n기록: proviso trace {tid[:8]}")
+    print(f"{text}\n\n기록: proviso trace {tid[:8]}" if tid else text)
     return 0
 
 
@@ -332,6 +333,7 @@ def main(argv: list[str] | None = None) -> int:
     agr.add_argument("--model", default="qwen3.5:4b")
     agr.add_argument("--retriever-config", default="config/experiments/rerank30.yaml")
     agr.add_argument("--limit", type=int)
+    agr.add_argument("--guard", action="store_true", help="개인 사안·투자 조언 질문을 모델 전에 거른다(answer/guard.py)")
     agr.add_argument("--repeat", type=int, default=0, help="API 모델 반복 번호(0이면 저장된 첫 응답을 다시 씀)")
     agr.add_argument("--max-tokens", type=int, default=500, help="답 길이 상한(5장 4B 기준 500)")
     agr.add_argument("--token-limit", type=int, default=11000, help="대화가 이만큼 차면 도구를 그만 쓰고 답한다(로컬 16K 문맥 기준 11000)")
