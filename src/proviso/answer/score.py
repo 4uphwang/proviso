@@ -1,4 +1,4 @@
-"""답변 채점(5장). 시점(temporal) 문항은 현행만 색인한 5장에서는 올바른 자료를 줄 수 없어 따로 센다(7장)."""
+"""답변 채점(5장). 시점(temporal) 문항은 따로 센다: 정답 버전을 봤는지, 인용, 핵심어, 답에 시점을 밝혔는지(7장)."""
 
 from __future__ import annotations
 
@@ -27,6 +27,17 @@ def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
         out["거절 정확도"] = float(a["refused"])
     elif it.category == "temporal":
         out["시점 문항 거절"] = float(a["refused"])
+        # 7장: 현행 본문만 보여 준 설정은 기록이 없고, 정답 본문은 현행과 모두 달라 0이다
+        out["정답 버전을 봄"] = float(bool(a.get("gold_version_in_context", False)))
+        golds = {(g.doc_id, g.article) for g in it.gold}
+        got = {(c["doc"], c["article"]) for c in a["cites"] if c["doc"]}
+        out["시점 인용 재현율"] = float(len(golds & got) / len(golds))
+        if it.must_include:
+            flat = re.sub(r"[\s*_`]", "", a["answer"])
+            out["시점 핵심어 포함률"] = mean([float(re.sub(r"\s", "", m) in flat) for m in it.must_include])
+        years = set(re.findall(r"(?:19|20)\d{2}", it.question))
+        if years and not a["refused"]:
+            out["답에 시점을 밝힘"] = float(any(y in a["answer"] for y in years))
     else:
         out["과잉 거절"] = float(a["refused"])
         if a.get("answer_in_context", rec["answer_in_context"]):
@@ -46,7 +57,7 @@ def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
 
 METRICS = ["정답 조문을 모두 봄", "답이 자료에 있음", "환각 인용 있는 답", "환각 인용률(인용 단위 평균)", "인용 없는 답", "거절 정확도", "과잉 거절",
            "과잉 거절(답이 자료에 있을 때)", "인용 재현율", "인용 정밀도", "핵심어 포함률", "핵심어 포함률(답이 자료에 있을 때)",
-           "법령 이름 없는 인용", "시점 문항 거절"]
+           "법령 이름 없는 인용", "시점 문항 거절", "정답 버전을 봄", "시점 인용 재현율", "시점 핵심어 포함률", "답에 시점을 밝힘"]
 
 
 def report(run: dict, items: dict[str, EvalItem], arms: list[str], pred: Callable[[EvalItem], bool] = lambda i: True,

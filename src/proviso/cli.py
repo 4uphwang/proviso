@@ -341,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
     aga = ag_sub.add_parser("ask", help="질문 하나에 답하고 단계별 기록을 남긴다")
     aga.add_argument("question")
     aga.add_argument("--model", default="qwen3.5:4b")
-    aga.add_argument("--retriever-config", default="config/experiments/rerank30.yaml")
+    aga.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
     aga.add_argument("--no-seed", action="store_true", help="첫 검색도 모델에게 맡긴다")
     aga.set_defaults(func=_agent_ask)
 

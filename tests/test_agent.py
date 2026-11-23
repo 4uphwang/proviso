@@ -105,3 +105,20 @@ def test_seed_more_appends_to_first_search():
     assert t.tool_calls == ["search"] and t.shown == [("가상법", "제5조"), ("가상법 시행령", "제3조")]
     assert "5억원" in llm.seen[0][0][-1]["content"] and "이어진 조문" in t.context
     assert b.attach([("없는법", "제1조")], "q") is None
+
+
+def test_version_flag_needs_same_text_period():
+    from datetime import date as D
+    from types import SimpleNamespace as NS
+
+    from proviso.agent.run import version_flag
+    from proviso.agent.tools import Law
+
+    it = NS(as_of=D(2014, 4, 9), answerable=True, gold=[NS(doc_id="법", article="제1조", valid_from=D(2013, 8, 29))])
+    law = Law({("법", "제1조"): {"valid_from": D(2014, 1, 1)}}, {}, {})
+    period = {("법", "제1조", D(2013, 8, 29)): D(2013, 8, 29), ("법", "제1조", D(2014, 1, 1)): D(2013, 8, 29)}
+    assert version_flag(it, {("법", "제1조")}, law, period) is True
+    period[("법", "제1조", D(2014, 1, 1))] = D(2014, 1, 1)
+    assert version_flag(it, {("법", "제1조")}, law, period) is False
+    assert version_flag(it, set(), law, period) is False
+    assert version_flag(NS(as_of=None, answerable=True, gold=[]), set(), law, period) is None

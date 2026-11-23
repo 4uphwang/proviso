@@ -9,12 +9,15 @@
 - agent: 모델이 도구 4개를 골라 쓴다
 - agent_seed: 질문 그대로 한 번 검색한 결과를 먼저 주고 시작한다
 - agent_seed_follow: agent_seed의 첫 검색 결과에 follow처럼 이어진 조문 3개를 코드가 붙인다(6장 test 뒤 추가)
+- agent_asof(7장): agent_seed에서 코드가 질문의 기준일을 읽어, 날짜가 있으면 도구가 모두 그날 시행 중이던 조문을 보여 주고
+  모델에게 기준일을 알린다. 날짜가 없으면 agent_seed와 같다
 - agent_links: agent에서 검색 결과마다 이어진 조문 이름을 함께 보여 준다(12문항 시험에서 검색만 하고 끝내 추가)
 """
 
 from __future__ import annotations
 
 import json
+import re
 import time
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -28,7 +31,10 @@ from proviso.eval.schema import EvalItem
 
 TODAY = date(2026, 11, 20)
 FIXED = ("fixed", "focus", "follow", "focus_follow", "short", "short_follow")
-AGENT = ("agent", "agent_seed", "agent_links", "agent_seed_follow")
+AGENT = ("agent", "agent_seed", "agent_links", "agent_seed_follow", "agent_asof")
+ASOF_NOTE = ("\n기준일: {when}. 질문은 이 시점의 규정을 묻는다. 도구는 그날 시행 중이던 조문(현행과 다를 수 있다)을 보여 준다. "
+             "답 첫 문장에 '{when} 시행 조문 기준'이라고 밝히고, 그 조문으로 답하라.{year_only}")
+YEAR_ONLY = " 질문이 연도만 말해서 그해 7월 1일을 기준일로 잡았다. 그해 안에 조문이 바뀌었을 수 있다고 덧붙여라."
 EXTRA_CHARS = 1500  # 더한 조문 하나의 상한
 SHORT_CHARS = 1000  # 검색 도구가 조문 하나에 보여 주는 길이와 같다
 
@@ -68,17 +74,18 @@ class Retriever:
         self._path.write_text(json.dumps(self._cache, ensure_ascii=False), encoding="utf-8")
         return value
 
-    def search(self, query: str) -> list[Key]:
-        """(문서, 조) 목록. 저장된 결과를 쓰면 걸린 시간은 0에 가깝다(지연 비교에는 seconds를 더한다)."""
-        key = f"s:{query}"
+    def search(self, query: str, as_of: date | None = None) -> list[Key]:
+        """(문서, 조) 목록. 저장된 결과를 쓰면 걸린 시간은 0에 가깝다(지연 비교에는 seconds를 더한다).
+        as_of가 있으면 그날 시행 중이던 본문에서 찾는다(7장, 본문 기간 색인이 있는 검색 설정이어야 한다)."""
+        key = f"s:{query}" + (f"@{as_of}" if as_of else "")
         if key not in self._cache:
             t0 = time.perf_counter()
-            hits = self.r.search(query, k=5, as_of=None)[:5]
+            hits = self.r.search(query, k=5, as_of=as_of)[:5]
             self._save(key, {"keys": [[h.doc_id, h.article_no] for h in hits], "seconds": round(time.perf_counter() - t0, 3)})
         return [tuple(k) for k in self._cache[key]["keys"]]
 
-    def seconds(self, query: str) -> float:
-        return self._cache.get(f"s:{query}", {}).get("seconds", 0.0)
+    def seconds(self, query: str, as_of: date | None = None) -> float:
+        return self._cache.get(f"s:{query}" + (f"@{as_of}" if as_of else ""), {}).get("seconds", 0.0)
 
     def rank(self, question: str, keys: list[Key], law: Law) -> list[Key]:
         """이어진 조문을 cross-encoder 점수순으로."""
@@ -135,6 +142,37 @@ def flags(it: EvalItem, shown: set[Key], ctx: str) -> dict:
             "answer_in_context": some and all("".join(m.split()) in flat for m in it.must_include)}
 
 
+def as_of_setup(conn, question: str, names, retr: Retriever, laws_at: dict) -> tuple[date | None, Law | None, Toolbox | None, str]:
+    """agent_asof(7장): 질문의 기준일을 읽어 그날 조문으로 도구를 만들고 시스템 메시지에 기준일을 적는다.
+    날짜가 없으면 (None, None, None, SYSTEM)이라 부른 쪽이 현행 도구를 쓴다."""
+    from proviso.retrieve.when import question_date
+
+    when = question_date(question, TODAY)
+    if not when:
+        return None, None, None, SYSTEM
+    if when not in laws_at:
+        laws_at[when] = load_law(conn, when)
+    law = laws_at[when]
+    box = Toolbox(law, names, lambda q: retr.search(q, when))
+    year_only = not re.search(r"\d+\s*월", question) and not re.search(r"\d{4}\s*[.\-/]\s*\d", question)
+    return when, law, box, SYSTEM + ASOF_NOTE.format(when=f"{when.year}년 {when.month}월 {when.day}일",
+                                                     year_only=YEAR_ONLY if year_only else "")
+
+
+def version_flag(it: EvalItem, shown: set[Key], law: Law, period: dict) -> bool | None:
+    """시점 문항: 정답 조문을 정답과 같은 본문(본문 기간)으로 봤는가. 현행 본문만 보이면 늘 False다."""
+    if not it.as_of or not it.answerable:
+        return None
+    for g in it.gold:
+        k = (g.doc_id, g.article)
+        if k not in shown or k not in law.articles:
+            return False
+        want = period.get((g.doc_id, g.article, g.valid_from))
+        if want is None or want != period.get((g.doc_id, g.article, law.articles[k]["valid_from"])):
+            return False
+    return True
+
+
 def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg: dict, limit: int | None = None,
         ids: set[str] | None = None, progress=print) -> Path:
     if arm not in FIXED + AGENT:
@@ -151,6 +189,10 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
     from proviso.retrieve.query_llm import OllamaClient
     plain = OllamaClient(model, num_ctx=16384, timeout=600, num_predict=500, presence_penalty=0.0)  # 5장과 같은 설정
     box = Toolbox(law, names, retr.search, link_hints=arm == "agent_links")
+    from proviso.retrieve.versions import period_starts
+
+    period = period_starts(conn)
+    laws_at: dict[date, Law] = {}
     recs = []
     fixed = {it.id: fixed_arts(arm, it.question, contexts[it.id]["arts"], law, retr) for it in items} if arm in FIXED else {}
     if arm in FIXED:  # 자료를 다 고른 뒤에 답한다
@@ -163,16 +205,24 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
             shown = {(a["doc_id"], a["article"]) for a in arts}
             extra = {"seconds": plain.last_seconds + contexts[it.id]["seconds"], "llm_seconds": plain.last_seconds}
         else:
-            t = run_agent(it.question, llm, box, seed_search=arm in ("agent_seed", "agent_seed_follow"),
+            when, use_law, use_box, system = (as_of_setup(conn, it.question, names, retr, laws_at) if arm == "agent_asof"
+                                              else (None, law, box, SYSTEM))
+            if when is None:
+                use_law, use_box = law, box
+            t = run_agent(it.question, llm, use_box, system=system,
+                          seed_search=arm in ("agent_seed", "agent_seed_follow", "agent_asof"),
                           seed_more=(lambda q, shown: box.attach(linked_top(q, shown, law, retr), q, EXTRA_CHARS))
                           if arm == "agent_seed_follow" else None)
             answer, ctx, shown = t.answer, t.context, set(t.shown)
-            search_sec = sum(retr.seconds(s["args"]["query"]) for s in t.steps
+            search_sec = sum(retr.seconds(s["args"]["query"], when) for s in t.steps
                              if s.get("tool") == "search" and not s["repeat"] and isinstance(s["args"], dict) and "query" in s["args"])
             llm_sec = sum(s["seconds"] for s in t.steps if s.get("llm"))
             extra = {"seconds": round(llm_sec + search_sec, 2), "llm_seconds": round(llm_sec, 2), "stop": t.stop, "steps": t.steps,
                      "tools": t.tool_calls, "prompt_tokens": t.prompt_tokens, "output_tokens": t.output_tokens}
-        a = judge(answer, shown, corpus, ctx, names) | extra | flags(it, shown, ctx)
+        used = laws_at.get(when, law) if arm == "agent_asof" and when else law
+        vf = version_flag(it, shown, used, period)
+        a = judge(answer, shown, corpus | set(used.articles), ctx, names) | extra | flags(it, shown, ctx) \
+            | ({"gold_version_in_context": vf} if vf is not None else {}) | ({"as_of": str(when)} if arm == "agent_asof" else {})
         recs.append({"id": it.id, **flags(it, shown, ctx), "arms": {arm: a}})
         if n % 10 == 0:
             progress(f"{n}/{len(items)}", flush=True)
