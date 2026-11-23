@@ -106,6 +106,16 @@ def load_law(conn, today: date) -> Law:
     return Law(arts, refs, down, up)
 
 
+def arrange(keys: list[Key], order: str, law: Law) -> list[Key]:
+    """점수순 목록을 배치 순서대로. ends: 1, 3, 5, … 다음 …, 4, 2(높은 순위가 처음과 끝, 낮은 순위가 가운데)."""
+    if order == "ends":
+        return keys[0::2] + keys[1::2][::-1]
+    if order == "law":
+        pos = {k: i for i, k in enumerate(law.articles)}  # 문서별 조 순서(current_articles의 정렬)
+        return sorted(keys, key=lambda k: pos.get(k, 1 << 30))
+    return keys
+
+
 @dataclass
 class Result:
     text: str
@@ -142,9 +152,12 @@ class Toolbox:
     """도구 모음. search_fn(query) → (문서, 조) 목록(관련도순)."""
 
     def __init__(self, law: Law, names: LawNames, search_fn: Callable[[str], list[Key]], k: int = 5,
-                 link_hints: bool = False):
-        """link_hints: 검색 결과마다 이어진 조문 이름을 함께 보여 준다(본문은 아니다)."""
-        self.law, self.names, self._search, self._k, self._hints = law, names, search_fn, k, link_hints
+                 link_hints: bool = False, order: str = "score"):
+        """link_hints: 검색 결과마다 이어진 조문 이름을 함께 보여 준다(본문은 아니다).
+        order(8장): 검색 결과 배치. score 점수순, ends 1·2위를 처음과 끝에, law 법령·조 번호순."""
+        if order not in ("score", "ends", "law"):
+            raise ValueError(f"모르는 배치 순서: {order!r}")
+        self.law, self.names, self._search, self._k, self._hints, self._order = law, names, search_fn, k, link_hints, order
 
     def call(self, name: str, args: Any, question: str) -> Result:
         fn = {"search": self.search, "get_article": self.get_article, "follow_reference": self.follow_reference,
@@ -172,7 +185,7 @@ class Toolbox:
         return key
 
     def search(self, query: str, question: str = "") -> Result:
-        keys = [k for k in self._search(query) if k in self.law.articles][:self._k]
+        keys = arrange([k for k in self._search(query) if k in self.law.articles][:self._k], self._order, self.law)
         if not keys:
             return Result("찾은 조문이 없음")
         return Result("\n\n".join(f"{self.law.label(k)}\n{focus(self.law.articles[k]['text'], query + ' ' + question, 1000)}"

@@ -142,3 +142,45 @@ def test_year_notice_only_for_year_only_and_changed_cites():
     assert year_notice("2014년 3월 당시 규정은?", D(2014, 3, 15), [cite("제1조")], law, H()) is None
     assert year_notice("2014년 당시 규정은?", D(2014, 7, 1), [cite("제1조", "unseen")], law, H()) is None
     assert year_notice("규정은?", None, [cite("제1조")], law, H()) is None
+
+
+def test_arrange_orders():
+    from proviso.agent.run import assembly
+    from proviso.agent.tools import Law, arrange
+
+    ks = [("법", f"제{i}조") for i in (5, 1, 4, 2, 3)]
+    law = Law({("법", f"제{i}조"): {} for i in range(1, 6)}, {}, {})
+    assert arrange(ks, "score", law) == ks
+    assert arrange(ks, "ends", law) == [ks[0], ks[2], ks[4], ks[3], ks[1]]
+    assert [k[1] for k in arrange(ks, "law", law)] == ["제1조", "제2조", "제3조", "제4조", "제5조"]
+    assert assembly("agent_asof") == (5, "score")
+    assert assembly("agent_asof_k14_ends") == (14, "ends")
+    assert assembly("agent_seed") is None
+
+
+def test_openai_convert_links_tool_ids():
+    from proviso.agent.loop import OpenAIChat
+
+    msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "q"},
+            {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "search", "arguments": {"query": "q"}}},
+                                                               {"function": {"name": "get_article", "arguments": {"law": "법", "article": "제1조"}}}]},
+            {"role": "tool", "tool_name": "search", "content": "r1"}, {"role": "tool", "tool_name": "get_article", "content": "r2"}]
+    out = OpenAIChat.convert(msgs)
+    ids = [c["id"] for c in out[2]["tool_calls"]]
+    assert ids == ["call_1", "call_2"] and out[2]["tool_calls"][1]["function"]["arguments"] == '{"law": "법", "article": "제1조"}'
+    assert [m["tool_call_id"] for m in out[3:]] == ids
+
+
+def test_chat_client_picks_backend():
+    from proviso.agent.loop import OllamaChat, chat_client
+
+    assert isinstance(chat_client("qwen3.5:4b"), OllamaChat)
+
+
+def test_openai_chat_never_exposes_key(monkeypatch, tmp_path):
+    from proviso.agent.loop import OpenAIChat
+
+    monkeypatch.setenv("TEST_KEY_FOR_REDACT", "sk-or-secret-123")
+    c = OpenAIChat("m", key_env="TEST_KEY_FOR_REDACT", cache=tmp_path)
+    assert "sk-or" not in repr(c)
+    assert c.redact("bad key sk-or-secret-123 given") == "bad key *** given"

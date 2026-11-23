@@ -221,7 +221,7 @@ def _agent_run(args: argparse.Namespace) -> int:
     with connect() as conn:
         for arm in args.arms.split(","):
             path = run(conn, evalset=Path(args.evalset), split=args.split, arm=arm, model=args.model, retriever_cfg=retr,
-                       limit=args.limit, ids=set(args.ids.split(",")) if args.ids else None)
+                       limit=args.limit, ids=set(args.ids.split(",")) if args.ids else None, token_limit=args.token_limit)
             print(f"결과: {path}", flush=True)
     return 0
 
@@ -331,6 +331,7 @@ def main(argv: list[str] | None = None) -> int:
     agr.add_argument("--model", default="qwen3.5:4b")
     agr.add_argument("--retriever-config", default="config/experiments/rerank30.yaml")
     agr.add_argument("--limit", type=int)
+    agr.add_argument("--token-limit", type=int, default=11000, help="대화가 이만큼 차면 도구를 그만 쓰고 답한다(로컬 16K 문맥 기준 11000)")
     agr.add_argument("--ids", help="쉼표로 나열한 문항 id만")
     agr.set_defaults(func=_agent_run)
     agp = ag_sub.add_parser("report", help="결과 파일들을 나란히 비교한다")

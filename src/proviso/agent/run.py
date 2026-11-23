@@ -11,6 +11,8 @@
 - agent_seed_follow: agent_seed의 첫 검색 결과에 follow처럼 이어진 조문 3개를 코드가 붙인다(6장 test 뒤 추가)
 - agent_asof(7장): agent_seed에서 코드가 질문의 기준일을 읽어, 날짜가 있으면 도구가 모두 그날 시행 중이던 조문을 보여 주고
   모델에게 기준일을 알린다. 날짜가 없으면 agent_seed와 같다
+- agent_asof_k<N>[_ends|_law](8장): agent_asof에서 검색 도구가 보여 주는 조문 수(N, 기본 5)와 배치 순서를 바꾼다.
+  ends는 1위와 2위를 처음과 끝에 두고 낮은 순위를 가운데로, law는 법령·조 번호순
 - agent_links: agent에서 검색 결과마다 이어진 조문 이름을 함께 보여 준다(12문항 시험에서 검색만 하고 끝내 추가)
 """
 
@@ -22,7 +24,7 @@ import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from proviso.agent.loop import FINISH, SYSTEM, OllamaChat, run_agent
+from proviso.agent.loop import FINISH, SYSTEM, chat_client, run_agent
 from proviso.agent.tools import SPECS, Key, Law, Toolbox, focus, load_law
 from proviso.answer.run import MAX_ARTICLE_CHARS, PROMPTS, build_contexts, context_text, judge, law_names, load_agent_items
 from proviso.config import ROOT
@@ -30,8 +32,17 @@ from proviso.eval.run import RUNS_DIR, file_sha256, git_state, latest_snapshot
 from proviso.eval.schema import EvalItem
 
 TODAY = date(2026, 11, 20)
+DEFAULT_MODEL = "qwen3.5:4b"
+TOKEN_LIMIT = 11000  # 6장: Ollama num_ctx 16384에서 답 500토큰과 다음 도구 결과 자리를 뺀 값
 FIXED = ("fixed", "focus", "follow", "focus_follow", "short", "short_follow")
 AGENT = ("agent", "agent_seed", "agent_links", "agent_seed_follow", "agent_asof")
+ASOF_ARM = re.compile(r"agent_asof(?:_k(\d+))?(?:_(ends|law))?$")
+
+
+def assembly(arm: str) -> tuple[int, str] | None:
+    """agent_asof 계열이면 (검색 결과 조문 수, 배치 순서)."""
+    m = ASOF_ARM.match(arm)
+    return (int(m.group(1) or 5), m.group(2) or "score") if m else None
 ASOF_NOTE = ("\n기준일: {when}. 질문은 이 시점의 규정을 묻는다. 도구는 그날 시행 중이던 조문(현행과 다를 수 있다)을 보여 준다. "
              "답 첫 문장에 '{when} 시행 조문 기준'이라고 밝히고, 그 조문으로 답하라.{year_only}")
 YEAR_ONLY = " 질문이 연도만 말해서 그해 7월 1일을 기준일로 잡았다. 그해 안에 조문이 바뀌었을 수 있다고 덧붙여라."
@@ -74,18 +85,18 @@ class Retriever:
         self._path.write_text(json.dumps(self._cache, ensure_ascii=False), encoding="utf-8")
         return value
 
-    def search(self, query: str, as_of: date | None = None) -> list[Key]:
+    def search(self, query: str, as_of: date | None = None, k: int = 5) -> list[Key]:
         """(문서, 조) 목록. 저장된 결과를 쓰면 걸린 시간은 0에 가깝다(지연 비교에는 seconds를 더한다).
         as_of가 있으면 그날 시행 중이던 본문에서 찾는다(7장, 본문 기간 색인이 있는 검색 설정이어야 한다)."""
-        key = f"s:{query}" + (f"@{as_of}" if as_of else "")
+        key = ("s:" if k == 5 else f"s{k}:") + query + (f"@{as_of}" if as_of else "")  # 5개는 6·7장 캐시 그대로
         if key not in self._cache:
             t0 = time.perf_counter()
-            hits = self.r.search(query, k=5, as_of=as_of)[:5]
+            hits = self.r.search(query, k=k, as_of=as_of)[:k]
             self._save(key, {"keys": [[h.doc_id, h.article_no] for h in hits], "seconds": round(time.perf_counter() - t0, 3)})
         return [tuple(k) for k in self._cache[key]["keys"]]
 
-    def seconds(self, query: str, as_of: date | None = None) -> float:
-        return self._cache.get(f"s:{query}" + (f"@{as_of}" if as_of else ""), {}).get("seconds", 0.0)
+    def seconds(self, query: str, as_of: date | None = None, k: int = 5) -> float:
+        return self._cache.get(("s:" if k == 5 else f"s{k}:") + query + (f"@{as_of}" if as_of else ""), {}).get("seconds", 0.0)
 
     def rank(self, question: str, keys: list[Key], law: Law) -> list[Key]:
         """이어진 조문을 cross-encoder 점수순으로."""
@@ -142,7 +153,8 @@ def flags(it: EvalItem, shown: set[Key], ctx: str) -> dict:
             "answer_in_context": some and all("".join(m.split()) in flat for m in it.must_include)}
 
 
-def as_of_setup(conn, question: str, names, retr: Retriever, laws_at: dict) -> tuple[date | None, Law | None, Toolbox | None, str]:
+def as_of_setup(conn, question: str, names, retr: Retriever, laws_at: dict, k: int = 5,
+                order: str = "score") -> tuple[date | None, Law | None, Toolbox | None, str]:
     """agent_asof(7장): 질문의 기준일을 읽어 그날 조문으로 도구를 만들고 시스템 메시지에 기준일을 적는다.
     날짜가 없으면 (None, None, None, SYSTEM)이라 부른 쪽이 현행 도구를 쓴다."""
     from proviso.retrieve.when import question_date
@@ -153,7 +165,7 @@ def as_of_setup(conn, question: str, names, retr: Retriever, laws_at: dict) -> t
     if when not in laws_at:
         laws_at[when] = load_law(conn, when)
     law = laws_at[when]
-    box = Toolbox(law, names, lambda q: retr.search(q, when))
+    box = Toolbox(law, names, lambda q: retr.search(q, when, k=k), k=k, order=order)
     return when, law, box, SYSTEM + ASOF_NOTE.format(when=f"{when.year}년 {when.month}월 {when.day}일",
                                                      year_only=YEAR_ONLY if year_only(question) else "")
 
@@ -194,21 +206,24 @@ def version_flag(it: EvalItem, shown: set[Key], law: Law, period: dict) -> bool 
 
 
 def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg: dict, limit: int | None = None,
-        ids: set[str] | None = None, progress=print) -> Path:
-    if arm not in FIXED + AGENT:
+        ids: set[str] | None = None, progress=print, token_limit: int = TOKEN_LIMIT) -> Path:
+    """token_limit(9장): 대화가 이만큼 차면 도구를 그만 쓰고 답하게 한다. 기본값은 로컬 문맥 창(16K)에 맞춘 값이다."""
+    asm = assembly(arm)
+    if arm not in FIXED + AGENT and not asm:
         raise ValueError(f"모르는 설정: {arm!r}")
     items = [i for i in load_agent_items(evalset, split) if not ids or i.id in ids][:limit]
     law, names = load_law(conn, TODAY), law_names(conn)
     corpus = set(law.articles)
     retr = Retriever(conn, retriever_cfg, ROOT / "data" / "cache" / "agent_search.json")
-    llm = OllamaChat(model)
+    llm = chat_client(model)
     ctx_path = ROOT / "data" / "cache" / "contexts_rerank30_k5.json"
     contexts = json.loads(ctx_path.read_text(encoding="utf-8")) if ctx_path.exists() else {}
     if any(i.id not in contexts for i in items):
         contexts = build_contexts(conn, items, retr.r, k=5, path=ctx_path)
     from proviso.retrieve.query_llm import OllamaClient
     plain = OllamaClient(model, num_ctx=16384, timeout=600, num_predict=500, presence_penalty=0.0)  # 5장과 같은 설정
-    box = Toolbox(law, names, retr.search, link_hints=arm == "agent_links")
+    k, order = asm or (5, "score")
+    box = Toolbox(law, names, lambda q: retr.search(q, k=k), link_hints=arm == "agent_links", k=k, order=order)
     from proviso.retrieve.versions import period_starts
 
     period = period_starts(conn)
@@ -228,31 +243,35 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
             shown = {(a["doc_id"], a["article"]) for a in arts}
             extra = {"seconds": plain.last_seconds + contexts[it.id]["seconds"], "llm_seconds": plain.last_seconds}
         else:
-            when, use_law, use_box, system = (as_of_setup(conn, it.question, names, retr, laws_at) if arm == "agent_asof"
+            when, use_law, use_box, system = (as_of_setup(conn, it.question, names, retr, laws_at, k, order) if asm
                                               else (None, law, box, SYSTEM))
             if when is None:
                 use_law, use_box = law, box
-            t = run_agent(it.question, llm, use_box, system=system,
-                          seed_search=arm in ("agent_seed", "agent_seed_follow", "agent_asof"),
+            t = run_agent(it.question, llm, use_box, system=system, token_limit=token_limit,
+                          seed_search=arm in ("agent_seed", "agent_seed_follow") or bool(asm),
                           seed_more=(lambda q, shown: box.attach(linked_top(q, shown, law, retr), q, EXTRA_CHARS))
                           if arm == "agent_seed_follow" else None)
             answer, ctx, shown = t.answer, t.context, set(t.shown)
-            search_sec = sum(retr.seconds(s["args"]["query"], when) for s in t.steps
+            search_sec = sum(retr.seconds(s["args"]["query"], when, k) for s in t.steps
                              if s.get("tool") == "search" and not s["repeat"] and isinstance(s["args"], dict) and "query" in s["args"])
             llm_sec = sum(s["seconds"] for s in t.steps if s.get("llm"))
             extra = {"seconds": round(llm_sec + search_sec, 2), "llm_seconds": round(llm_sec, 2), "stop": t.stop, "steps": t.steps,
-                     "tools": t.tool_calls, "prompt_tokens": t.prompt_tokens, "output_tokens": t.output_tokens}
-        used = laws_at.get(when, law) if arm == "agent_asof" and when else law
+                     "tools": t.tool_calls, "prompt_tokens": t.prompt_tokens, "output_tokens": t.output_tokens,
+                     "cost": round(t.cost, 6)}
+        used = laws_at.get(when, law) if asm and when else law
         vf = version_flag(it, shown, used, period)
         a = judge(answer, shown, corpus | set(used.articles), ctx, names) | extra | flags(it, shown, ctx) \
-            | ({"gold_version_in_context": vf} if vf is not None else {}) | ({"as_of": str(when)} if arm == "agent_asof" else {})
-        if arm == "agent_asof":
+            | ({"gold_version_in_context": vf} if vf is not None else {}) | ({"as_of": str(when)} if asm else {})
+        if asm:
             a["year_notice"] = year_notice(it.question, when, a["cites"], used, hist)
         recs.append({"id": it.id, **flags(it, shown, ctx), "arms": {arm: a}})
         if n % 10 == 0:
             progress(f"{n}/{len(items)}", flush=True)
-    path = RUNS_DIR / f"{datetime.now(timezone.utc):%Y%m%dT%H%M%S}_agent-{arm}-{split}.json"
-    path.write_text(json.dumps({"run_id": path.stem, "kind": "agent", "arm": arm, "model": model, "options": llm.options,
+    tag = "" if model == DEFAULT_MODEL else "-" + re.sub(r"[^A-Za-z0-9.]+", "_", model)  # 9장: 기본 모델이 아니면 이름에 모델을 붙인다
+    if token_limit != TOKEN_LIMIT:
+        tag += f"-t{token_limit // 1000}k"
+    path = RUNS_DIR / f"{datetime.now(timezone.utc):%Y%m%dT%H%M%S}_agent-{arm}-{split}{tag}.json"
+    path.write_text(json.dumps({"run_id": path.stem, "kind": "agent", "arm": arm, "model": model, "options": llm.options, "token_limit": token_limit,
                                 "split": split, "k": 5, "evalset": {"path": str(evalset), "hash": file_sha256(evalset)},
                                 "retriever": retriever_cfg, "snapshot_id": latest_snapshot(conn), "git": git_state(),
                                 "system": SYSTEM, "finish": FINISH, "tools": SPECS, "per_item": recs}, ensure_ascii=False, default=list),

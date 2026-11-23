@@ -29,6 +29,8 @@ class Reply:
     prompt_tokens: int = 0
     output_tokens: int = 0
     seconds: float = 0.0
+    cost: float = 0.0           # API 모델이 알려 준 요금(달러). 로컬은 0
+    provider: str = ""          # 오픈라우터가 실제로 보낸 곳
 
 
 class OllamaChat:
@@ -61,6 +63,100 @@ class OllamaChat:
         return rep
 
 
+class OpenAIChat:
+    """OpenAI 호환 API(오픈라우터 등)로 도구를 쓰는 대화(9장). OllamaChat과 같은 메시지를 받아 바꿔 보낸다.
+
+    메시지는 Ollama 형식(도구 호출에 id가 없고, 도구 결과에 tool_name)으로 쌓이므로, 보낼 때 호출마다 id를 붙이고
+    도구 결과를 순서대로 그 id에 잇는다. 같은 입력의 응답은 파일에 저장해 다시 쓴다(다시 돌려도 요금이 들지 않는다).
+    """
+
+    def __init__(self, model: str, *, base_url: str = "https://openrouter.ai/api/v1", key_env: str = "OPENROUTER_API_KEY",
+                 num_predict: int = 500, timeout: float = 300, cache: Path = ROOT / "data" / "cache" / "llm_chat",
+                 reasoning: str | None = None):
+        """reasoning: None이면 추론을 끈다. 끌 수 없는 모델(gpt-oss, GLM 등)은 'low'처럼 가장 낮은 단계를 준다(결과에 남는다)."""
+        import os
+
+        from dotenv import load_dotenv
+
+        load_dotenv(ROOT / ".env")
+        key = os.environ.get(key_env, "")
+        if not key:
+            raise RuntimeError(f"{key_env}가 비어 있음(.env 확인)")
+        self.model = model
+        self.options = {"temperature": 0.0, "seed": 0, "max_tokens": num_predict,
+                        "reasoning": {"effort": reasoning, "exclude": True} if reasoning else {"enabled": False}}
+        if reasoning:  # 추론 토큰도 max_tokens에 들어가므로 답이 잘리지 않게 넉넉히 준다
+            self.options["max_tokens"] = num_predict + 2000
+        self._key = key  # 헤더로만 보낸다. 저장하는 파일(응답, 결과, 기록)에는 넣지 않는다
+        self._http = httpx.Client(base_url=base_url, timeout=timeout, headers={"Authorization": f"Bearer {key}"})
+        self._cache = cache
+        self.total_cost = 0.0
+
+    def redact(self, text: str) -> str:
+        """오류 글에 키가 섞여 나와도 지운다."""
+        return text.replace(self._key, "***") if self._key else text
+
+    def __repr__(self) -> str:
+        return f"OpenAIChat(model={self.model!r})"
+
+    @staticmethod
+    def convert(messages: list[dict]) -> list[dict]:
+        out, pending, n = [], [], 0
+        for m in messages:
+            if m["role"] == "assistant" and m.get("tool_calls"):
+                calls = []
+                for c in m["tool_calls"]:
+                    n += 1
+                    calls.append({"id": f"call_{n}", "type": "function", "function": {
+                        "name": c["function"]["name"], "arguments": json.dumps(c["function"]["arguments"], ensure_ascii=False)}})
+                pending = [c["id"] for c in calls]
+                out.append({"role": "assistant", "content": m.get("content") or "", "tool_calls": calls})
+            elif m["role"] == "tool":
+                out.append({"role": "tool", "tool_call_id": pending.pop(0) if pending else f"call_{n}", "content": m["content"]})
+            else:
+                out.append({"role": m["role"], "content": m["content"]})
+        return out
+
+    def chat(self, messages: list[dict], tools: list[dict] | None) -> Reply:
+        body = {"model": self.model, "messages": self.convert(messages), **self.options, "usage": {"include": True}}
+        if tools:
+            body["tools"] = tools
+        path = self._cache / (hashlib.sha256(json.dumps(body, ensure_ascii=False, sort_keys=True).encode()).hexdigest() + ".json")
+        if path.exists():
+            return Reply(**json.loads(path.read_text(encoding="utf-8")))
+        t0 = time.perf_counter()
+        try:
+            r = self._http.post("/chat/completions", json=body)
+        except httpx.HTTPError as e:
+            raise RuntimeError(self.redact(f"API 연결 오류: {e}")) from None
+        if r.status_code >= 400:
+            raise RuntimeError(self.redact(f"API 오류 {r.status_code}: {r.text[:300]}"))
+        d = r.json()
+        msg = d["choices"][0]["message"]
+        calls = []
+        for c in msg.get("tool_calls") or []:
+            try:
+                args = json.loads(c["function"].get("arguments") or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            calls.append({"function": {"name": c["function"]["name"], "arguments": args}})
+        u = d.get("usage") or {}
+        rep = Reply((msg.get("content") or "").strip(), calls, u.get("prompt_tokens") or 0, u.get("completion_tokens") or 0,
+                    round(time.perf_counter() - t0, 3), float(u.get("cost") or 0.0), d.get("provider") or "")
+        self.total_cost += rep.cost
+        self._cache.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(rep.__dict__, ensure_ascii=False), encoding="utf-8")
+        return rep
+
+
+def chat_client(model: str):
+    """'openrouter:<모델 id>[@추론 단계]'면 오픈라우터, 아니면 로컬 Ollama. 예: openrouter:openai/gpt-oss-20b@low"""
+    if not model.startswith("openrouter:"):
+        return OllamaChat(model)
+    mid, _, effort = model.split(":", 1)[1].partition("@")
+    return OpenAIChat(mid, reasoning=effort or None)
+
+
 @dataclass
 class Trace:
     answer: str = ""
@@ -71,6 +167,7 @@ class Trace:
     seconds: float = 0.0
     prompt_tokens: int = 0
     output_tokens: int = 0
+    cost: float = 0.0
 
     @property
     def tool_calls(self) -> list[str]:
@@ -118,6 +215,7 @@ def run_agent(question: str, llm, tools: Toolbox, *, system: str = SYSTEM, max_t
         tr.seconds += rep.seconds
         tr.prompt_tokens += rep.prompt_tokens
         tr.output_tokens += rep.output_tokens
+        tr.cost += rep.cost
         tr.steps.append({"llm": True, "prompt_tokens": rep.prompt_tokens, "output_tokens": rep.output_tokens, "seconds": rep.seconds})
         return rep
 
