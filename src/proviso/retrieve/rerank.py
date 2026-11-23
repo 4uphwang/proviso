@@ -49,8 +49,9 @@ class RerankRetriever:
         self._texts: dict[tuple, list[str]] = {}
         for doc_id, arts, text in conn.execute(
                 "SELECT doc_id, articles, text FROM index_chunks WHERE index_id = %s ORDER BY chunk_no", (index_id,)):
-            for a in arts:
-                self._texts.setdefault((doc_id, a["article_no"], a["valid_from"]), []).append(text)
+            for a in arts:  # 모든 본문 기간 색인(7장)이면 기간 안의 span 시작일마다 같은 본문을 건다
+                for vf in a.get("spans") or [a["valid_from"]]:
+                    self._texts.setdefault((doc_id, a["article_no"], vf), []).append(text)
         self._scorer = scorer or load_cross_encoder(model, max_length).predict
         self._skip = skip_score
         self.reranked: list[bool] = []

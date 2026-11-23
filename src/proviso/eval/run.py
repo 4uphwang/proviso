@@ -31,7 +31,9 @@ def load_config(path: Path) -> dict[str, Any]:
     cfg.setdefault("split", "dev")
     cfg.setdefault("k", 20)
     cfg.setdefault("repeats", 1)
-    cfg.setdefault("use_as_of", True)  # 시점 문항의 기준일을 검색기에 넘길지(날짜 추출이 완벽하다고 가정)
+    cfg.setdefault("use_as_of", True)  # 시점 문항의 기준일을 검색기에 넘길지(True: 평가셋 정답 날짜, 날짜 추출이 완벽하다고 가정)
+    if cfg["use_as_of"] not in (True, False, "question"):
+        raise ValueError(f"{path}: use_as_of는 true, false, question 중 하나")  # question: 질문 글에서 읽은 날짜(7장)
     return cfg
 
 
@@ -61,17 +63,25 @@ def latest_snapshot(conn) -> str | None:
     return row[0] if row else None
 
 
+def _as_of(it: EvalItem, use_as_of: bool | str, today: date) -> date | None:
+    if use_as_of == "question":
+        from proviso.retrieve.when import question_date
+
+        return question_date(it.question, today)
+    return it.as_of if use_as_of else None
+
+
 def run_items(retriever, items: list[EvalItem], *, k: int, today: date, repeats: int = 1,
-              use_as_of: bool = True, log=print) -> list[dict]:
+              use_as_of: bool | str = True, period: dict | None = None, log=print) -> list[dict]:
     """문항마다 repeats번 검색해 순위와 지연을 남긴다. 상위 5개 결과는 첫 회만 남긴다(나빠진 문항 확인용)."""
     out = []
     for n, it in enumerate(items, start=1):
         rec: dict[str, Any] = {"id": it.id, "rank": [], "latency_ms": []}
         for r in range(repeats):
             t0 = time.perf_counter()
-            hits = retriever.search(it.question, k=k, as_of=it.as_of if use_as_of else None)
+            hits = retriever.search(it.question, k=k, as_of=_as_of(it, use_as_of, today))
             rec["latency_ms"].append(round((time.perf_counter() - t0) * 1000, 2))
-            s = score_item(it, hits, today)
+            s = score_item(it, hits, today, period)
             rec["rank"].append(s["rank"])
             if "rank_law" in s:
                 rec.setdefault("rank_law", []).append(s["rank_law"])
@@ -125,20 +135,27 @@ def summarize_run(items: list[EvalItem], per_item: list[dict], n_boot: int = 100
 
 
 def run_eval(cfg: dict[str, Any], conn, *, split: str | None = None, limit: int | None = None,
+             category: str | None = None,
              runs_dir: Path = RUNS_DIR, log=print) -> Path:
     from proviso.retrieve import build_retriever
 
     split = split or cfg["split"]
     evalset = ROOT / cfg["evalset"] if not Path(cfg["evalset"]).is_absolute() else Path(cfg["evalset"])
     items = load_items(evalset, split)
+    if category:
+        items = [it for it in items if it.category in category.split(",")]
     if limit:
         items = items[:limit]
     retriever = build_retriever(cfg["retriever"], conn)
     today = date.today()
     log(f"{cfg['name']}: {split} {len(items)}문항, k={cfg['k']}, 반복 {cfg['repeats']}회")
     t0 = time.perf_counter()
+    from proviso.retrieve.versions import period_starts
+
+    # 시점 정답은 같은 본문 기간이면 맞다(7장). 그전에는 span 시작일이 같아야 했다. 현행만 찾는 검색기는 어차피 0이다.
+    period = period_starts(conn) if any(it.as_of for it in items) else None
     per_item = run_items(retriever, items, k=cfg["k"], today=today, repeats=cfg["repeats"],
-                         use_as_of=cfg["use_as_of"], log=log)
+                         use_as_of=cfg["use_as_of"], period=period, log=log)
     created = datetime.now(timezone.utc)
     run = {
         "run_id": created.strftime("%Y%m%dT%H%M%S") + "_" + cfg["name"],
@@ -147,7 +164,7 @@ def run_eval(cfg: dict[str, Any], conn, *, split: str | None = None, limit: int 
         "retriever": retriever.describe(),
         "snapshot_id": latest_snapshot(conn),
         "evalset": {"path": str(cfg["evalset"]), "hash": file_sha256(evalset), "split": split,
-                    "n": len(items), "limit": limit},
+                    "n": len(items), "limit": limit, "category": category},
         "today": today.isoformat(),
         "git": git_state(),
         "elapsed_s": round(time.perf_counter() - t0, 1),

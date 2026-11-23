@@ -1,6 +1,7 @@
 """색인 만들기: config/indexes/<이름>.yaml → index_versions + index_chunks.
 
-1장 기준선은 기준일(기본: 오늘)에 유효한 조문만 넣는다(현행만). 과거 버전은 7장에서 다룬다.
+1장 기준선은 기준일(기본: 오늘)에 유효한 조문만 넣는다(현행만).
+7장: 설정에 `versions: all`이 있으면 본문이 같은 기간(text period)마다 하나씩, 제정 이후 모든 본문을 넣는다.
 """
 
 from __future__ import annotations
@@ -46,6 +47,33 @@ def current_articles(conn, as_of: date) -> dict[str, list[dict]]:
     return out
 
 
+def text_periods(conn) -> dict[str, list[dict]]:
+    """문서별로 본문이 바뀌지 않은 기간마다 조문 하나. 버전마다 생기는 기간(span)을 본문이 같으면 이어 붙인다.
+
+    valid_from/valid_to는 기간의 처음과 끝, spans는 그 안의 span 시작일 목록(평가 정답과 재정렬이 span 단위로 찾는다).
+    장 제목은 기간의 마지막 span 것을 쓴다. 삭제된 조문은 넣지 않는다.
+    """
+    rows = conn.execute("""
+        SELECT s.doc_id, s.article_no, s.valid_from, s.valid_to, s.text_id, coalesce(t.search_text, t.text),
+               s.heading, t.article_title, d.title, t.deleted
+        FROM article_spans s JOIN article_texts t USING (text_id) JOIN documents d ON d.doc_id = s.doc_id
+        ORDER BY s.doc_id, s.sort_key, s.article_no, s.valid_from""").fetchall()
+    out: dict[str, list[dict]] = {}
+    last: dict | None = None
+    for doc, art, vf, vt, tid, text, heading, title, doc_title, deleted in rows:
+        if last and last["doc_id"] == doc and last["article_no"] == art and last["text_id"] == tid \
+                and last["valid_to"] == vf:
+            last["valid_to"] = vt
+            last["spans"].append(str(vf))
+            last["heading"] = heading
+            continue
+        last = {"doc_id": doc, "article_no": art, "valid_from": vf, "valid_to": vt, "text_id": tid, "text": text,
+                "heading": heading, "title": title, "doc_title": doc_title, "spans": [str(vf)], "deleted": deleted}
+        if not deleted:
+            out.setdefault(doc, []).append(last)
+    return out
+
+
 def _vec(v: list[float]) -> str:
     return "[" + ",".join(f"{x:.6f}" for x in v) + "]"
 
@@ -60,6 +88,9 @@ def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedde
     from proviso.eval.run import latest_snapshot
     from proviso.index.embed import Embedder
 
+    versions = cfg.get("versions", "current")
+    if versions not in ("current", "all"):
+        raise ValueError(f"versions는 current나 all: {versions!r}")
     as_of = as_of or date.today()
     ch, em = cfg["chunking"], cfg["embedding"]
     if ch.get("type") not in ("fixed", "article"):
@@ -68,6 +99,8 @@ def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedde
                                     batch_size=em.get("batch_size", 16))
     snapshot = latest_snapshot(conn)
     method = {"chunking": ch, "embedding": embedder.describe()}
+    if versions == "all":
+        method["versions"] = "all"
     digest = hashlib.sha256(json.dumps([method, snapshot, str(as_of)], sort_keys=True).encode()).hexdigest()[:8]
     index_id = f"{cfg['name']}-{digest}"
     if conn.execute("SELECT 1 FROM index_versions WHERE index_id = %s", (index_id,)).fetchone():
@@ -76,7 +109,8 @@ def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedde
 
     t0 = time.perf_counter()
     chunks = []
-    for doc, arts in current_articles(conn, as_of).items():
+    source = text_periods(conn) if versions == "all" else current_articles(conn, as_of)
+    for doc, arts in source.items():
         if ch["type"] == "fixed":
             cs = fixed_chunks(arts, embedder.tokenize_offsets, size=ch["size"], overlap=ch["overlap"])
         else:

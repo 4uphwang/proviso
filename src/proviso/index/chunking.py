@@ -129,6 +129,7 @@ def article_chunks(articles: list[dict], tokenize: Tokenize, size: int = 500, he
                 "text": head + p,
                 "articles": [{"article_no": a["article_no"], "valid_from": str(a["valid_from"]),
                               "valid_to": str(a["valid_to"]) if a.get("valid_to") else None,
-                              "chars": len(p), "part": i, "parts": len(pieces)}],
+                              "chars": len(p), "part": i, "parts": len(pieces),
+                              **({"spans": a["spans"]} if a.get("spans") else {})}],
             })
     return out

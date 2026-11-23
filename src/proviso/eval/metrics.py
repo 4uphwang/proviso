@@ -51,27 +51,32 @@ def _covers(h: Hit, d: date) -> bool:
     return h.valid_from <= d and (h.valid_to is None or d < h.valid_to)
 
 
-def matches(g: Gold, h: Hit, today: date) -> bool:
+def matches(g: Gold, h: Hit, today: date, period: dict | None = None) -> bool:
+    """period: (doc, 조, span 시작일) → 본문 기간 시작일. 주면 시점 정답은 '같은 본문'이면 맞다(7장).
+    버전마다 span이 새로 생겨서, 본문이 그대로여도 span 시작일은 다를 수 있다."""
     if g.doc_id != h.doc_id or g.article != h.article_no:
         return False
     if g.valid_from is not None:
+        if period is not None:
+            p = period.get((g.doc_id, g.article, g.valid_from))
+            return p is not None and p == period.get((h.doc_id, h.article_no, h.valid_from))
         return h.valid_from == g.valid_from
     return _covers(h, today)
 
 
-def _rank(g: Gold, hits: list[Hit], today: date) -> int | None:
+def _rank(g: Gold, hits: list[Hit], today: date, period: dict | None = None) -> int | None:
     for i, h in enumerate(hits, start=1):
-        if matches(g, h, today):
+        if matches(g, h, today, period):
             return i
     return None
 
 
-def score_item(item: EvalItem, hits: list[Hit], today: date) -> dict:
+def score_item(item: EvalItem, hits: list[Hit], today: date, period: dict | None = None) -> dict:
     """문항 하나의 정답 순위. 순위는 같은 조문 버전을 묶은 뒤의 순위(1부터), 못 찾으면 None."""
     arts = dedupe(hits)
-    out = {"rank": _rank(item.gold[0], arts, today)}
+    out = {"rank": _rank(item.gold[0], arts, today, period)}
     if item.category == "cross_ref" and len(item.gold) > 1:
-        out["rank_law"] = _rank(item.gold[1], arts, today)
+        out["rank_law"] = _rank(item.gold[1], arts, today, period)
     return out
 
 

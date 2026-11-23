@@ -1,0 +1,11 @@
+# 7장: c3c1-bge-m3와 같은 청킹·임베딩으로 제정 이후 모든 본문(본문이 같은 기간마다 하나)을 넣는다
+name: c3c1-bge-m3-all
+versions: all
+chunking:
+  type: article
+  size: 500
+  header: true
+embedding:
+  model: BAAI/bge-m3
+  max_length: 512
+  batch_size: 16

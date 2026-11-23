@@ -102,7 +102,7 @@ def _eval(args: argparse.Namespace) -> int:
     if args.repeats:
         cfg["repeats"] = args.repeats
     with connect() as conn:
-        path = run_eval(cfg, conn, split=args.split, limit=args.limit)
+        path = run_eval(cfg, conn, split=args.split, limit=args.limit, category=args.category)
     print(format_summary(json.loads(path.read_text(encoding="utf-8"))))
     print(f"\n결과: {path}")
     return 0
@@ -294,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     evp.add_argument("--config", required=True, help="config/experiments/<이름>.yaml")
     evp.add_argument("--split", choices=["dev", "test", "all"], help="기본: 설정 파일의 split")
     evp.add_argument("--limit", type=int, help="앞에서 N문항만(빠른 확인용. 비교에는 쓰지 말 것)")
+    evp.add_argument("--category", help="이 유형만(쉼표로 여럿). 예: temporal")
     evp.add_argument("--repeats", type=int, help="같은 설정 반복 횟수(기본: 설정 파일)")
     evp.set_defaults(func=_eval)
 
