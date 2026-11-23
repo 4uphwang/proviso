@@ -72,7 +72,7 @@ class OpenAIChat:
 
     def __init__(self, model: str, *, base_url: str = "https://openrouter.ai/api/v1", key_env: str = "OPENROUTER_API_KEY",
                  num_predict: int = 500, timeout: float = 300, cache: Path = ROOT / "data" / "cache" / "llm_chat",
-                 reasoning: str | None = None):
+                 reasoning: str | None = None, repeat: int = 0):
         """reasoning: None이면 추론을 끈다. 끌 수 없는 모델(gpt-oss, GLM 등)은 'low'처럼 가장 낮은 단계를 준다(결과에 남는다)."""
         import os
 
@@ -91,6 +91,7 @@ class OpenAIChat:
         self._http = httpx.Client(base_url=base_url, timeout=timeout, headers={"Authorization": f"Bearer {key}"})
         self._cache = cache
         self.total_cost = 0.0
+        self.repeat = repeat  # 9장: API 모델은 temperature 0이어도 답이 매번 달라서 반복한다. 0이면 처음 돌린 응답 그대로
 
     def redact(self, text: str) -> str:
         """오류 글에 키가 섞여 나와도 지운다."""
@@ -121,7 +122,8 @@ class OpenAIChat:
         body = {"model": self.model, "messages": self.convert(messages), **self.options, "usage": {"include": True}}
         if tools:
             body["tools"] = tools
-        path = self._cache / (hashlib.sha256(json.dumps(body, ensure_ascii=False, sort_keys=True).encode()).hexdigest() + ".json")
+        key = body if not self.repeat else {**body, "_repeat": self.repeat}  # 반복 번호는 저장 이름에만 쓰고 API에는 보내지 않는다
+        path = self._cache / (hashlib.sha256(json.dumps(key, ensure_ascii=False, sort_keys=True).encode()).hexdigest() + ".json")
         if path.exists():
             return Reply(**json.loads(path.read_text(encoding="utf-8")))
         t0 = time.perf_counter()
@@ -149,12 +151,13 @@ class OpenAIChat:
         return rep
 
 
-def chat_client(model: str):
-    """'openrouter:<모델 id>[@추론 단계]'면 오픈라우터, 아니면 로컬 Ollama. 예: openrouter:openai/gpt-oss-20b@low"""
+def chat_client(model: str, max_tokens: int = 500, repeat: int = 0):
+    """'openrouter:<모델 id>[@추론 단계]'면 오픈라우터, 아니면 로컬 Ollama. 예: openrouter:openai/gpt-oss-20b@low
+    max_tokens: 답 길이 상한. 500은 5장에서 4B의 끝없는 반복을 끊으려고 정한 값이다(9장: API 모델은 답을 길게 써서 잘린다)."""
     if not model.startswith("openrouter:"):
-        return OllamaChat(model)
+        return OllamaChat(model, num_predict=max_tokens)
     mid, _, effort = model.split(":", 1)[1].partition("@")
-    return OpenAIChat(mid, reasoning=effort or None)
+    return OpenAIChat(mid, reasoning=effort or None, num_predict=max_tokens, repeat=repeat)
 
 
 @dataclass

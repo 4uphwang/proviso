@@ -206,7 +206,8 @@ def version_flag(it: EvalItem, shown: set[Key], law: Law, period: dict) -> bool 
 
 
 def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg: dict, limit: int | None = None,
-        ids: set[str] | None = None, progress=print, token_limit: int = TOKEN_LIMIT) -> Path:
+        ids: set[str] | None = None, progress=print, token_limit: int = TOKEN_LIMIT, max_tokens: int = 500,
+        repeat: int = 0) -> Path:
     """token_limit(9장): 대화가 이만큼 차면 도구를 그만 쓰고 답하게 한다. 기본값은 로컬 문맥 창(16K)에 맞춘 값이다."""
     asm = assembly(arm)
     if arm not in FIXED + AGENT and not asm:
@@ -215,7 +216,7 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
     law, names = load_law(conn, TODAY), law_names(conn)
     corpus = set(law.articles)
     retr = Retriever(conn, retriever_cfg, ROOT / "data" / "cache" / "agent_search.json")
-    llm = chat_client(model)
+    llm = chat_client(model, max_tokens, repeat)
     ctx_path = ROOT / "data" / "cache" / "contexts_rerank30_k5.json"
     contexts = json.loads(ctx_path.read_text(encoding="utf-8")) if ctx_path.exists() else {}
     if any(i.id not in contexts for i in items):
@@ -270,6 +271,10 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
     tag = "" if model == DEFAULT_MODEL else "-" + re.sub(r"[^A-Za-z0-9.]+", "_", model)  # 9장: 기본 모델이 아니면 이름에 모델을 붙인다
     if token_limit != TOKEN_LIMIT:
         tag += f"-t{token_limit // 1000}k"
+    if max_tokens != 500:
+        tag += f"-o{max_tokens}"
+    if repeat:
+        tag += f"-r{repeat}"
     path = RUNS_DIR / f"{datetime.now(timezone.utc):%Y%m%dT%H%M%S}_agent-{arm}-{split}{tag}.json"
     path.write_text(json.dumps({"run_id": path.stem, "kind": "agent", "arm": arm, "model": model, "options": llm.options, "token_limit": token_limit,
                                 "split": split, "k": 5, "evalset": {"path": str(evalset), "hash": file_sha256(evalset)},
