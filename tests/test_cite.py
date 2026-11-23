@@ -92,3 +92,13 @@ def test_keywords_found_through_markdown_bold():
     it = NS(category="lookup", answerable=True, gold=[NS(doc_id="법", article="제1조")], must_include=["6개월 이내"])
     a = {"answer": "**6 개월 이내**에 해야 합니다.", "cites": [], "refused": False}
     assert item_scores(it, {"answer_in_context": True}, a)["핵심어 포함률"] == 1.0
+
+
+def test_keyword_rules_ch8():
+    from proviso.answer.score import keyword_hit, keywords
+
+    assert keywords(["다음 각 목의 정보", "어느 하나에 해당하는 주주", "고시하는 것", "청문"]) == ["청문"]
+    assert keyword_hit("투자매매업ㆍ투자중개업", "투자매매업 및 투자중개업을 할 수 있다")
+    assert keyword_hit("투자매매업ㆍ투자중개업", "**투자중개업**, 투자매매업")
+    assert not keyword_hit("투자매매업ㆍ투자중개업", "투자매매업만 할 수 있다")
+    assert keyword_hit("6 개월 이내", "**6 개월 이내**")

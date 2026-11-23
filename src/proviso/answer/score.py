@@ -10,6 +10,22 @@ from proviso.eval.metrics import bootstrap_ci, mean, paired_diff_ci
 from proviso.eval.schema import EvalItem
 
 
+# 8장: 핵심 내용이 아닌 형식 문구 핵심어는 채점에서 뺀다(평가셋 문구만 보고 정한 규칙).
+BOILERPLATE = re.compile(r"다음\s*각\s*(?:호|목)|어느\s*하나에\s*해당|고시하는\s*것")
+
+
+def keywords(must_include: list[str]) -> list[str]:
+    return [m for m in must_include if not BOILERPLATE.search(m)]
+
+
+def keyword_hit(keyword: str, answer: str) -> bool:
+    """답에 핵심어가 있는가. 공백과 굵은 글씨 표시(*, _, `)는 무시한다(6장).
+    8장: "투자매매업ㆍ투자중개업"처럼 ㆍ로 묶은 핵심어는 묶인 말이 모두 있으면 있다고 본다(답이 "및"이나 쉼표로 이어도)."""
+    flat = re.sub(r"[\s*_`]", "", answer)
+    parts = [re.sub(r"\s", "", x) for x in re.split(r"[ㆍ·‧]", keyword)]
+    return all(x in flat for x in parts if x)
+
+
 def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
     """문항 하나의 값. 해당 없는 값은 넣지 않는다."""
     out: dict[str, float] = {}
@@ -33,8 +49,8 @@ def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
         got = {(c["doc"], c["article"]) for c in a["cites"] if c["doc"]}
         out["시점 인용 재현율"] = float(len(golds & got) / len(golds))
         if it.must_include:
-            flat = re.sub(r"[\s*_`]", "", a["answer"])
-            out["시점 핵심어 포함률"] = mean([float(re.sub(r"\s", "", m) in flat) for m in it.must_include])
+            if keywords(it.must_include):
+                out["시점 핵심어 포함률"] = mean([float(keyword_hit(m, a["answer"])) for m in keywords(it.must_include)])
         years = set(re.findall(r"(?:19|20)\d{2}", it.question))
         if years and not a["refused"]:
             out["답에 시점을 밝힘"] = float(any(y in a["answer"] for y in years))
@@ -47,9 +63,8 @@ def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
         out["인용 재현율"] = float(len(golds & got) / len(golds))
         if got:
             out["인용 정밀도"] = len(golds & got) / len(got)
-        if it.must_include:
-            flat = re.sub(r"[\s*_`]", "", a["answer"])  # 굵은 글씨 표시(**)가 핵심어 사이에 끼면 못 찾는다(6장에서 고침)
-            out["핵심어 포함률"] = mean([float(re.sub(r"\s", "", m) in flat) for m in it.must_include])
+        if keywords(it.must_include):
+            out["핵심어 포함률"] = mean([float(keyword_hit(m, a["answer"])) for m in keywords(it.must_include)])
             if a.get("answer_in_context", rec["answer_in_context"]):
                 out["핵심어 포함률(답이 자료에 있을 때)"] = out["핵심어 포함률"]
     return out
