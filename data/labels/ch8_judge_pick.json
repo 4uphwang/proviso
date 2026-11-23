@@ -1,0 +1,282 @@
+{
+ "a005": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "yes"
+  ]
+ },
+ "a007": {
+  "plain": [
+   "no",
+   "yes"
+  ],
+  "context": [
+   "no",
+   "yes"
+  ]
+ },
+ "a008": {
+  "plain": [
+   "wrong"
+  ],
+  "context": [
+   "wrong"
+  ]
+ },
+ "a009": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a011": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a013": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "yes"
+  ]
+ },
+ "a015": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a022": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "no"
+  ]
+ },
+ "a024": {
+  "plain": [
+   "no",
+   "no"
+  ],
+  "context": [
+   "no",
+   "yes"
+  ]
+ },
+ "a025": {
+  "plain": [
+   "no",
+   "no"
+  ],
+  "context": [
+   "no",
+   "no"
+  ]
+ },
+ "a027": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "no"
+  ]
+ },
+ "a028": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "yes"
+  ]
+ },
+ "a030": {
+  "plain": [
+   "no",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a031": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a035": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a041": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a043": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "yes"
+  ]
+ },
+ "a049": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "yes"
+  ]
+ },
+ "a050": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a051": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a053": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "yes"
+  ]
+ },
+ "a054": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a056": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "yes"
+  ]
+ },
+ "a057": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a059": {
+  "plain": [
+   "yes"
+  ],
+  "context": [
+   "yes"
+  ]
+ },
+ "a060": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a061": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a072": {
+  "plain": [
+   "no",
+   "no"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a079": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ },
+ "a080": {
+  "plain": [
+   "yes",
+   "yes"
+  ],
+  "context": [
+   "yes",
+   "yes"
+  ]
+ }
+}
