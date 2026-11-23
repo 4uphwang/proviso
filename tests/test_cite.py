@@ -84,3 +84,11 @@ def test_present_marks_bad_citations_and_adds_disclaimer():
     out = present("답 [보험업법 제1조]", [{"doc": None, "outside": "보험업법", "article": "제1조", "status": "outside"}])
     assert "확인되지 않은 인용: 보험업법 제1조" in out and out.endswith(DISCLAIMER)
     assert "확인되지" not in present("답", [{"doc": "상법", "outside": None, "article": "제1조", "status": "shown"}])
+
+
+def test_keywords_found_through_markdown_bold():
+    from proviso.answer.score import item_scores
+    from types import SimpleNamespace as NS
+    it = NS(category="lookup", answerable=True, gold=[NS(doc_id="법", article="제1조")], must_include=["6개월 이내"])
+    a = {"answer": "**6 개월 이내**에 해야 합니다.", "cites": [], "refused": False}
+    assert item_scores(it, {"answer_in_context": True}, a)["핵심어 포함률"] == 1.0

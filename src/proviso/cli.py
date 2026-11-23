@@ -211,6 +211,57 @@ def _answer_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _agent_run(args: argparse.Namespace) -> int:
+    import yaml
+
+    from proviso.agent.run import run
+    from proviso.db.connect import connect
+
+    retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
+    with connect() as conn:
+        for arm in args.arms.split(","):
+            path = run(conn, evalset=Path(args.evalset), split=args.split, arm=arm, model=args.model, retriever_cfg=retr,
+                       limit=args.limit, ids=set(args.ids.split(",")) if args.ids else None)
+            print(f"결과: {path}", flush=True)
+    return 0
+
+
+def _agent_report(args: argparse.Namespace) -> int:
+    import json
+
+    from proviso.agent.run import merge
+    from proviso.answer.run import load_agent_items
+    from proviso.answer.score import report
+
+    runs = [json.loads(Path(p).read_text(encoding="utf-8")) for p in args.runs]
+    items = {i.id: i for i in load_agent_items(Path(runs[0]["evalset"]["path"]), "all")}
+    cats = set(args.category.split(",")) if args.category else None
+    print(report(merge(runs), items, [r["arm"] for r in runs], lambda i: not cats or i.category in cats))
+    return 0
+
+
+def _agent_ask(args: argparse.Namespace) -> int:
+    import yaml
+
+    from proviso.agent.ask import ask
+    from proviso.db.connect import connect
+
+    retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
+    with connect() as conn:
+        text, tid = ask(conn, args.question, retriever_cfg=retr, model=args.model, seed_search=not args.no_seed)
+    print(f"{text}\n\n기록: proviso trace {tid[:8]}")
+    return 0
+
+
+def _trace_show(args: argparse.Namespace) -> int:
+    from proviso.db.connect import connect
+    from proviso.trace.store import show
+
+    with connect() as conn:
+        print(show(conn, args.trace_id))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="proviso", description="금융 법령 근거 에이전트")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -269,6 +320,33 @@ def main(argv: list[str] | None = None) -> int:
     gre.set_defaults(func=_graph_export)
     grc = gr_sub.add_parser("check", help="OWL 2 RL 추론 뒤 SPARQL 답을 SQL 답과 대조")
     grc.set_defaults(func=_graph_check)
+
+    ag = sub.add_parser("agent", help="도구를 쓰는 에이전트(6장)")
+    ag_sub = ag.add_subparsers(dest="agent_command", required=True)
+    agr = ag_sub.add_parser("run", help="고정 파이프라인·에이전트 설정을 평가셋으로 돌린다")
+    agr.add_argument("--evalset", default="evalset/agent.jsonl")
+    agr.add_argument("--split", choices=["dev", "test"], default="dev")
+    agr.add_argument("--arms", default="fixed,focus,follow,focus_follow,short,short_follow,agent,agent_seed,agent_links")
+    agr.add_argument("--model", default="qwen3.5:4b")
+    agr.add_argument("--retriever-config", default="config/experiments/rerank30.yaml")
+    agr.add_argument("--limit", type=int)
+    agr.add_argument("--ids", help="쉼표로 나열한 문항 id만")
+    agr.set_defaults(func=_agent_run)
+    agp = ag_sub.add_parser("report", help="결과 파일들을 나란히 비교한다")
+    agp.add_argument("runs", nargs="+")
+    agp.add_argument("--category", help="유형만(쉼표)")
+    agp.set_defaults(func=_agent_report)
+
+    aga = ag_sub.add_parser("ask", help="질문 하나에 답하고 단계별 기록을 남긴다")
+    aga.add_argument("question")
+    aga.add_argument("--model", default="qwen3.5:4b")
+    aga.add_argument("--retriever-config", default="config/experiments/rerank30.yaml")
+    aga.add_argument("--no-seed", action="store_true", help="첫 검색도 모델에게 맡긴다")
+    aga.set_defaults(func=_agent_ask)
+
+    tc = sub.add_parser("trace", help="기록 하나를 단계별 표로 본다")
+    tc.add_argument("trace_id", help="앞 몇 글자만 줘도 된다")
+    tc.set_defaults(func=_trace_show)
 
     an = sub.add_parser("answer", help="답변 생성·채점(5장, 로컬 LLM)")
     an_sub = an.add_subparsers(dest="answer_command", required=True)

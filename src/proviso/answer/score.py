@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Callable
 
 from proviso.answer.cite import HALLUCINATED
@@ -13,6 +14,9 @@ def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
     """문항 하나의 값. 해당 없는 값은 넣지 않는다."""
     out: dict[str, float] = {}
     st = [c["status"] for c in a["cites"]]
+    if "all_gold_in_context" in a and it.answerable and it.category != "temporal":  # 6장: 설정마다 자료가 다르다
+        out["정답 조문을 모두 봄"] = float(a["all_gold_in_context"])
+        out["답이 자료에 있음"] = float(a["answer_in_context"])
     out["환각 인용 있는 답"] = float(any(s in HALLUCINATED for s in st))  # 거절처럼 시작해도 지어낸 조문을 쓰면 센다
     if not a["refused"]:
         out["인용 없는 답"] = float(not st)
@@ -25,7 +29,7 @@ def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
         out["시점 문항 거절"] = float(a["refused"])
     else:
         out["과잉 거절"] = float(a["refused"])
-        if rec["answer_in_context"]:
+        if a.get("answer_in_context", rec["answer_in_context"]):
             out["과잉 거절(답이 자료에 있을 때)"] = float(a["refused"])
         golds = {(g.doc_id, g.article) for g in it.gold}
         got = {(c["doc"], c["article"]) for c in a["cites"] if c["doc"]}
@@ -33,14 +37,14 @@ def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
         if got:
             out["인용 정밀도"] = len(golds & got) / len(got)
         if it.must_include:
-            flat = a["answer"].replace(" ", "")
-            out["핵심어 포함률"] = mean([float(m.replace(" ", "") in flat) for m in it.must_include])
-            if rec["answer_in_context"]:
+            flat = re.sub(r"[\s*_`]", "", a["answer"])  # 굵은 글씨 표시(**)가 핵심어 사이에 끼면 못 찾는다(6장에서 고침)
+            out["핵심어 포함률"] = mean([float(re.sub(r"\s", "", m) in flat) for m in it.must_include])
+            if a.get("answer_in_context", rec["answer_in_context"]):
                 out["핵심어 포함률(답이 자료에 있을 때)"] = out["핵심어 포함률"]
     return out
 
 
-METRICS = ["환각 인용 있는 답", "환각 인용률(인용 단위 평균)", "인용 없는 답", "거절 정확도", "과잉 거절",
+METRICS = ["정답 조문을 모두 봄", "답이 자료에 있음", "환각 인용 있는 답", "환각 인용률(인용 단위 평균)", "인용 없는 답", "거절 정확도", "과잉 거절",
            "과잉 거절(답이 자료에 있을 때)", "인용 재현율", "인용 정밀도", "핵심어 포함률", "핵심어 포함률(답이 자료에 있을 때)",
            "법령 이름 없는 인용", "시점 문항 거절"]
 
