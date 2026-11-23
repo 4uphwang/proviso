@@ -122,3 +122,23 @@ def test_version_flag_needs_same_text_period():
     assert version_flag(it, {("법", "제1조")}, law, period) is False
     assert version_flag(it, set(), law, period) is False
     assert version_flag(NS(as_of=None, answerable=True, gold=[]), set(), law, period) is None
+
+
+def test_year_notice_only_for_year_only_and_changed_cites():
+    from datetime import date as D
+
+    from proviso.agent.run import year_notice
+    from proviso.agent.tools import Law
+
+    class H:
+        def changes(self, doc, art, start, end):
+            return [D(2014, 9, 1)] if art == "제1조" else []
+
+    law = Law({("법", "제1조"): {"doc_title": "어느 법", "title": "목적"}, ("법", "제2조"): {"doc_title": "어느 법", "title": "정의"}}, {}, {})
+    cite = lambda art, st="shown": {"doc": "법", "article": art, "status": st}
+    note = year_notice("2014년 당시 규정은?", D(2014, 7, 1), [cite("제1조")], law, H())
+    assert note and "어느 법 제1조(목적)(9월 1일 시행)" in note
+    assert year_notice("2014년 당시 규정은?", D(2014, 7, 1), [cite("제2조")], law, H()) is None
+    assert year_notice("2014년 3월 당시 규정은?", D(2014, 3, 15), [cite("제1조")], law, H()) is None
+    assert year_notice("2014년 당시 규정은?", D(2014, 7, 1), [cite("제1조", "unseen")], law, H()) is None
+    assert year_notice("규정은?", None, [cite("제1조")], law, H()) is None

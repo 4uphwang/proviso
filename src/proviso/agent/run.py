@@ -154,9 +154,29 @@ def as_of_setup(conn, question: str, names, retr: Retriever, laws_at: dict) -> t
         laws_at[when] = load_law(conn, when)
     law = laws_at[when]
     box = Toolbox(law, names, lambda q: retr.search(q, when))
-    year_only = not re.search(r"\d+\s*월", question) and not re.search(r"\d{4}\s*[.\-/]\s*\d", question)
     return when, law, box, SYSTEM + ASOF_NOTE.format(when=f"{when.year}년 {when.month}월 {when.day}일",
-                                                     year_only=YEAR_ONLY if year_only else "")
+                                                     year_only=YEAR_ONLY if year_only(question) else "")
+
+
+def year_only(question: str) -> bool:
+    return not re.search(r"\d+\s*월", question) and not re.search(r"\d{4}\s*[.\-/]\s*\d", question)
+
+
+def year_notice(question: str, when: date | None, cites: list[dict], law: Law, hist) -> str | None:
+    """연도만 말한 질문에서, 답이 인용한 조문(보여 준 것)이 그해 안에 바뀌었으면 코드가 붙이는 고지(7장).
+    모델에게 지시해서는 거의 쓰지 않았다(8문항 중 1개)."""
+    if not when or not year_only(question):
+        return None
+    keys = list(dict.fromkeys((c["doc"], c["article"]) for c in cites if c["status"] == "shown" and c["doc"]))
+    changed = []
+    for k in keys:
+        days = hist.changes(k[0], k[1], date(when.year, 1, 1), date(when.year, 12, 31))
+        if days and k in law.articles:
+            changed.append(f"{law.short(k)}({', '.join(f'{d.month}월 {d.day}일' for d in days)} 시행)")
+    if not changed:
+        return None
+    return (f"※ 질문이 연도만 말해 {when.year}년 {when.month}월 {when.day}일 시행 조문으로 답했습니다. "
+            f"{', '.join(changed)}은(는) {when.year}년 중에 바뀌어, 그해 다른 때에는 내용이 다를 수 있습니다.")
 
 
 def version_flag(it: EvalItem, shown: set[Key], law: Law, period: dict) -> bool | None:
@@ -192,6 +212,9 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
     from proviso.retrieve.versions import period_starts
 
     period = period_starts(conn)
+    from proviso.retrieve.versions import TextHistory
+
+    hist = TextHistory(conn)
     laws_at: dict[date, Law] = {}
     recs = []
     fixed = {it.id: fixed_arts(arm, it.question, contexts[it.id]["arts"], law, retr) for it in items} if arm in FIXED else {}
@@ -223,6 +246,8 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
         vf = version_flag(it, shown, used, period)
         a = judge(answer, shown, corpus | set(used.articles), ctx, names) | extra | flags(it, shown, ctx) \
             | ({"gold_version_in_context": vf} if vf is not None else {}) | ({"as_of": str(when)} if arm == "agent_asof" else {})
+        if arm == "agent_asof":
+            a["year_notice"] = year_notice(it.question, when, a["cites"], used, hist)
         recs.append({"id": it.id, **flags(it, shown, ctx), "arms": {arm: a}})
         if n % 10 == 0:
             progress(f"{n}/{len(items)}", flush=True)

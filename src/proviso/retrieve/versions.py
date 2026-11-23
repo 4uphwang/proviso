@@ -50,3 +50,27 @@ def period_starts(conn) -> dict[tuple[str, str, date], date]:
         out[(doc, art, vf)] = start
         prev = (doc, art, tid, vt, start)
     return out
+
+
+class TextHistory:
+    """(doc, 조) → 본문이 바뀐 날짜들. 연도만 말한 질문에서 그해 안에 조문이 바뀌었는지 볼 때 쓴다(7장)."""
+
+    def __init__(self, conn):
+        self._by: dict[tuple[str, str], list[tuple[date, date | None, str]]] = {}
+        for doc, art, vf, vt, tid in conn.execute(
+                "SELECT doc_id, article_no, valid_from, valid_to, text_id FROM article_spans ORDER BY doc_id, article_no, valid_from"):
+            self._by.setdefault((doc, art), []).append((vf, vt, tid))
+
+    def changes(self, doc_id: str, article_no: str, start: date, end: date) -> list[date]:
+        """start 다음 날부터 end까지 본문이 바뀐(새로 생기거나 없어진 것 포함) 날."""
+        out, prev, prev_end = [], None, None
+        for vf, vt, tid in self._by.get((doc_id, article_no), []):
+            if vf > end:
+                break
+            gap = prev_end is not None and prev_end < vf  # 사이에 없던 기간
+            if start < vf and (tid != prev or gap):
+                out.append(vf)
+            if vt is not None and start < vt <= end and (vt not in [x[0] for x in self._by[(doc_id, article_no)]]):
+                out.append(vt)  # 이날부터 조문이 없다
+            prev, prev_end = tid, vt
+        return sorted(set(out))

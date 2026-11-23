@@ -50,3 +50,15 @@ def test_period_match_ignores_span_split():
     assert matches(g, h, date(2026, 1, 1), period)
     period[("법", "제1조", date(2003, 1, 1))] = date(2003, 1, 1)
     assert not matches(g, h, date(2026, 1, 1), period)
+
+
+def test_text_history_changes_in_year():
+    from proviso.retrieve.versions import TextHistory
+
+    h = TextHistory(FakeConn([("법", "제1조", date(2000, 1, 1), date(2014, 3, 1), "a"),
+                              ("법", "제1조", date(2014, 3, 1), date(2014, 9, 1), "a"),
+                              ("법", "제1조", date(2014, 9, 1), None, "b")]))
+    assert h.changes("법", "제1조", date(2014, 1, 1), date(2014, 12, 31)) == [date(2014, 9, 1)]
+    assert h.changes("법", "제1조", date(2015, 1, 1), date(2015, 12, 31)) == []
+    assert h.changes("법", "제1조", date(1999, 1, 1), date(1999, 12, 31)) == []
+    assert h.changes("법", "제1조", date(2000, 1, 1), date(2000, 12, 31)) == []  # 1월 1일에 생기면 그해 내내 같다

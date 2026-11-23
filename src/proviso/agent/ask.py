@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from proviso.agent.loop import OllamaChat, run_agent
-from proviso.agent.run import TODAY, Retriever, as_of_setup
+from proviso.agent.run import TODAY, Retriever, as_of_setup, year_notice
 from proviso.agent.tools import Toolbox, load_law
 from proviso.answer.run import judge, law_names, present
 from proviso.config import ROOT
@@ -23,4 +23,8 @@ def ask(conn, question: str, *, retriever_cfg: dict, model: str, seed_search: bo
     tid = save(conn, tr, question=question, answer=tr.answer, refused=r["refused"],
                config={"model": model, "seed_search": seed_search, "retriever": retriever_cfg,
                        "as_of": str(when) if when else None}, snapshot_id=latest_snapshot(conn))
-    return present(tr.answer, r["cites"]), tid
+    from proviso.retrieve.versions import TextHistory
+
+    note = year_notice(question, when, r["cites"], law_at or law, TextHistory(conn))
+    text = present(tr.answer, r["cites"])
+    return (text.replace("\n\n※ 이 답변은", f"\n\n{note}\n\n※ 이 답변은", 1) if note else text), tid
