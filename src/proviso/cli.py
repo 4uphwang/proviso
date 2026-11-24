@@ -287,6 +287,18 @@ def _agent_faith(args: argparse.Namespace) -> int:
     return 0
 
 
+def _otel(args: argparse.Namespace) -> int:
+    from proviso.trace.otel import export_records, load_records, otlp_exporter
+
+    recs = load_records(args.trace_ids or None, args.day)
+    if not recs:
+        print("내보낼 기록이 없음")
+        return 1
+    n = export_records(recs, otlp_exporter(args.endpoint))
+    print(f"기록 {len(recs)}개, span {n}개를 {args.endpoint}로 보냄")
+    return 0
+
+
 def _trace_show(args: argparse.Namespace) -> int:
     from proviso.db.connect import connect
     from proviso.trace.store import show
@@ -402,6 +414,12 @@ def main(argv: list[str] | None = None) -> int:
     tc = sub.add_parser("trace", help="기록 하나를 단계별 표로 본다")
     tc.add_argument("trace_id", help="앞 몇 글자만 줘도 된다")
     tc.set_defaults(func=_trace_show)
+
+    ot = sub.add_parser("otel", help="기록을 OpenTelemetry(OTLP)로 내보낸다(15장). pip install -e '.[otel]'")
+    ot.add_argument("trace_ids", nargs="*", help="기록 id(앞 몇 글자). 없으면 --day의 기록 전부, 그것도 없으면 전부")
+    ot.add_argument("--day", help="YYYYMMDD")
+    ot.add_argument("--endpoint", default="http://localhost:6006/v1/traces", help="기본: 로컬 Phoenix")
+    ot.set_defaults(func=_otel)
 
     an = sub.add_parser("answer", help="답변 생성·채점(5장, 로컬 LLM)")
     an_sub = an.add_subparsers(dest="answer_command", required=True)

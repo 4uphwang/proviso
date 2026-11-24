@@ -18,6 +18,8 @@ dev = ["pytest>=8.0"]
 embed = ["sentence-transformers>=3.0", "torch>=2.4"]
 # 법령 관계 그래프(RDF/OWL, `proviso graph`)
 graph = ["rdflib>=7.0", "owlrl>=7.0"]
+# 기록을 OpenTelemetry로 내보내기(15장, `proviso otel`). 받는 쪽 예: 로컬 Phoenix(docker)
+otel = ["opentelemetry-sdk>=1.38", "opentelemetry-exporter-otlp-proto-http>=1.38"]
 
 [project.scripts]
 proviso = "proviso.cli:main"
