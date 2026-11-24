@@ -132,3 +132,24 @@ def test_error_keeps_only_message_not_account_ids(tmp_path, monkeypatch):
 def test_failed_eval_item_is_not_scored_as_refusal():
     from proviso.answer.score import item_scores
     assert item_scores(None, {}, {"answer": "", "refused": False, "cites": [], "error": "API 오류 503"}) == {}
+
+
+def test_mark_cache_on_system_and_last_message():
+    from proviso.agent.loop import chat_client, mark_cache
+    msgs = [{"role": "system", "content": "S"}, {"role": "user", "content": "Q"},
+            {"role": "assistant", "content": "", "tool_calls": []}, {"role": "tool", "tool_call_id": "c1", "content": "R"}]
+    out = mark_cache(msgs)
+    assert out[0]["content"][0] == {"type": "text", "text": "S", "cache_control": {"type": "ephemeral"}}
+    assert out[1]["content"] == "Q" and out[3]["content"][0]["cache_control"] == {"type": "ephemeral"}
+    assert msgs[0]["content"] == "S"  # 원본은 그대로
+    sys_only = mark_cache(msgs, "sys")
+    assert sys_only[0]["content"][0]["cache_control"] and sys_only[3]["content"] == "R"
+
+
+def test_cache_suffix_in_model_spec(monkeypatch):
+    from proviso.agent.loop import chat_client
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+    c = chat_client("openrouter:anthropic/claude-haiku-5.5+cache")
+    assert c.model == "anthropic/claude-haiku-5.5" and c.prompt_cache == "all"
+    assert chat_client("openrouter:anthropic/claude-haiku-5.5+cache-sys").prompt_cache == "sys"
+    assert not chat_client("openrouter:z-ai/glm-5.3-flash@low").prompt_cache

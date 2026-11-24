@@ -35,6 +35,8 @@ class Reply:
     attempts: int = 1           # 14장: 재시도까지 친 시도 횟수
     model: str = ""             # 14장: 대체 모델을 쓰면 실제로 답한 모델
     fallback_from: str = ""     # 14장: 1순위가 실패해 넘어왔으면 그 1순위 모델
+    cached_tokens: int = 0      # 18장: 입력 중 캐시에서 읽은 토큰
+    cache_write_tokens: int = 0  # 18장: 입력 중 캐시에 쓴 토큰
 
 
 class OllamaChat:
@@ -78,8 +80,10 @@ class OpenAIChat:
     def __init__(self, model: str, *, base_url: str = "https://openrouter.ai/api/v1", key_env: str = "OPENROUTER_API_KEY",
                  num_predict: int = 500, timeout: float = 300, cache: Path = ROOT / "data" / "cache" / "llm_chat",
                  reasoning: str | None = None, repeat: int = 0, policy: RetryPolicy | None = None,
-                 per_minute: int = 60, transport: httpx.BaseTransport | None = None):
-        """reasoning: None이면 추론을 끈다. 끌 수 없는 모델(gpt-oss, GLM 등)은 'low'처럼 가장 낮은 단계를 준다(결과에 남는다)."""
+                 per_minute: int = 60, transport: httpx.BaseTransport | None = None, prompt_cache: str | None = None):
+        """reasoning: None이면 추론을 끈다. 끌 수 없는 모델(gpt-oss, GLM 등)은 'low'처럼 가장 낮은 단계를 준다(결과에 남는다).
+        prompt_cache(18장): None | 'sys' | 'all'. Anthropic 모델에 캐시 표시(cache_control)를 단다(mark_cache).
+        DeepSeek 등은 공급자가 앞부분을 알아서 캐시한다."""
         import os
 
         from dotenv import load_dotenv
@@ -93,6 +97,7 @@ class OpenAIChat:
                         "reasoning": {"effort": reasoning, "exclude": True} if reasoning else {"enabled": False}}
         if reasoning:  # 추론 토큰도 max_tokens에 들어가므로 답이 잘리지 않게 넉넉히 준다
             self.options["max_tokens"] = num_predict + 2000
+        self.prompt_cache = prompt_cache
         self._key = key  # 헤더로만 보낸다. 저장하는 파일(응답, 결과, 기록)에는 넣지 않는다
         self.policy = policy or RetryPolicy(timeout=60.0)  # 14장: 호출마다 60초, 429·5xx만 최대 3번 다시
         self._limit = limiter_for(base_url, per_minute)  # 14장: 평가 실행이 회사의 분당 한도에 걸리지 않게
@@ -128,7 +133,10 @@ class OpenAIChat:
         return out
 
     def chat(self, messages: list[dict], tools: list[dict] | None) -> Reply:
-        body = {"model": self.model, "messages": self.convert(messages), **self.options, "usage": {"include": True}}
+        msgs = self.convert(messages)
+        if self.prompt_cache:
+            msgs = mark_cache(msgs, self.prompt_cache)
+        body = {"model": self.model, "messages": msgs, **self.options, "usage": {"include": True}}
         if tools:
             body["tools"] = tools
         key = body if not self.repeat else {**body, "_repeat": self.repeat}  # 반복 번호는 저장 이름에만 쓰고 API에는 보내지 않는다
@@ -158,11 +166,31 @@ class OpenAIChat:
         u = d.get("usage") or {}
         rep = Reply((msg.get("content") or "").strip(), calls, u.get("prompt_tokens") or 0, u.get("completion_tokens") or 0,
                     round(time.perf_counter() - t0, 3), float(u.get("cost") or 0.0), d.get("provider") or "",
-                    attempts=attempts, model=self.model)
+                    attempts=attempts, model=self.model, cached_tokens=_detail(u, "cached_tokens"),
+                    cache_write_tokens=_detail(u, "cache_write_tokens"))
         self.total_cost += rep.cost
         self._cache.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(rep.__dict__, ensure_ascii=False), encoding="utf-8")
         return rep
+
+
+def mark_cache(msgs: list[dict], mode: str = "all") -> list[dict]:
+    """글을 블록으로 바꾸고 cache_control을 단다(18장). Anthropic 캐시는 앞부분 일치라서, 도구 정의 → 시스템 → 대화
+    순서의 앞부분이 같으면 읽는다. mode='sys': 시스템 메시지 끝에만(모든 질문이 같은 앞부분).
+    'all': 시스템 메시지 끝과 마지막 메시지 끝(같은 질문의 다음 호출이 대화 앞부분을 다시 읽는다)."""
+    out = [dict(m) for m in msgs]
+    marks = [i for i, m in enumerate(out) if m["role"] == "system"][:1] + ([len(out) - 1] if mode == "all" else [])
+    for i in dict.fromkeys(marks):
+        c = out[i].get("content")
+        if isinstance(c, str) and c:
+            out[i]["content"] = [{"type": "text", "text": c, "cache_control": {"type": "ephemeral"}}]
+    return out
+
+
+def _detail(u: dict, key: str) -> int:
+    """오픈라우터 usage의 캐시 토큰(prompt_tokens_details 안이나 바깥)."""
+    d = u.get("prompt_tokens_details") or {}
+    return int(d.get(key) or u.get(key) or 0)
 
 
 def _reason(r: httpx.Response) -> str:
@@ -190,12 +218,16 @@ def _post(http: httpx.Client, path: str, body: dict) -> dict:
 
 
 def chat_client(model: str, max_tokens: int = 500, repeat: int = 0):
-    """'openrouter:<모델 id>[@추론 단계]'면 오픈라우터, 아니면 로컬 Ollama. 예: openrouter:openai/gpt-oss-20b@low
+    """'openrouter:<모델 id>[@추론 단계][+cache]'면 오픈라우터, 아니면 로컬 Ollama. 예: openrouter:openai/gpt-oss-20b@low
+    +cache(18장): 시스템과 마지막 메시지에 캐시 표시, +cache-sys: 시스템에만. 예: openrouter:anthropic/claude-haiku-5.5+cache-sys
     max_tokens: 답 길이 상한. 500은 5장에서 4B의 끝없는 반복을 끊으려고 정한 값이다(9장: API 모델은 답을 길게 써서 잘린다)."""
     if not model.startswith("openrouter:"):
         return OllamaChat(model, num_predict=max_tokens)
-    mid, _, effort = model.split(":", 1)[1].partition("@")
-    return OpenAIChat(mid, reasoning=effort or None, num_predict=max_tokens, repeat=repeat)
+    spec = model.split(":", 1)[1]
+    spec, _, cache = spec.partition("+")
+    cache = {"cache": "all", "cache-sys": "sys"}.get(cache) if cache else None
+    mid, _, effort = spec.partition("@")
+    return OpenAIChat(mid, reasoning=effort or None, num_predict=max_tokens, repeat=repeat, prompt_cache=cache)
 
 
 @dataclass
@@ -264,6 +296,9 @@ def run_agent(question: str, llm, tools: Toolbox, *, system: str = SYSTEM, max_t
         step = {"llm": True, "prompt_tokens": rep.prompt_tokens, "output_tokens": rep.output_tokens, "seconds": rep.seconds}
         if getattr(rep, "attempts", 1) > 1:  # 14장: 재시도·대체가 있었을 때만 남긴다(전 결과 파일과 모양을 같게)
             step["attempts"] = rep.attempts
+        for k in ("cached_tokens", "cache_write_tokens"):  # 18장: 캐시를 읽거나 썼을 때만 남긴다
+            if getattr(rep, k, 0):
+                step[k] = getattr(rep, k)
         if getattr(rep, "fallback_from", ""):
             step |= {"model": rep.model, "fallback_from": rep.fallback_from}
         tr.steps.append(step)
