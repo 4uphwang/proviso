@@ -394,7 +394,7 @@ def main(argv: list[str] | None = None) -> int:
 
     fa = ag_sub.add_parser("faith", help="답이 본 조문에 근거하는지 판정자 모델로 잰다(13장)")
     fa.add_argument("run", help="runs/<…>_agent-….json")
-    fa.add_argument("--judge", default="openrouter:deepseek/deepseek-v4-flash-0731")
+    fa.add_argument("--judge", default="openrouter:z-ai/glm-5.3-flash@low", help="13장에서 라벨과 가장 잘 맞은 판정자")
     fa.add_argument("--max-tokens", type=int, default=2000)
     fa.add_argument("--ids", help="이 문항만(쉼표로 여럿)")
     fa.set_defaults(func=_agent_faith)

@@ -56,6 +56,8 @@ DeepSeek V4 Flash는 질문당 약 $0.001로 세 지표 모두 4b보다 높았�
 
 [12장](docs/chapters/12-embeddings.md)에서는 임베딩 모델을 비교했습니다. 벡터 검색만 쓰면 KURE-v1이 bge-m3보다 test recall@1 0.441 → 0.494, recall@10 0.764 → 0.817로 나았고(95% 구간이 0을 벗어남), Qwen3-Embedding-0.6B는 recall@10만 올랐습니다. 하지만 지금 검색(BM25 + RRF + 재정렬)에 넣으면 차이가 없었습니다(recall@1 0.666 → 0.667). 재정렬이 받는 후보 30개 안의 정답 비율이 0.960 → 0.964로 거의 같기 때문입니다. 그래서 기본은 bge-m3로 둡니다.
 
+[13장](docs/chapters/13-faithfulness.md)에서는 답이 자기가 본 조문에 없는 말을 하는지 판정자 모델로 쟀습니다(`proviso agent faith`). Sonnet 5.5 라벨 60문항에서 GLM-5.3 Flash가 가장 잘 맞았고(test 일치 0.87, κ 0.59, 너그러운 쪽), 이것으로 test 답 553개를 채점하니 근거 없는 주장이 있는 답이 4b 0.352, Solar 0.243, GLM 0.206, DeepSeek 0.149였습니다. 환각 인용(0.6~1.2%)으로는 보이지 않던 차이입니다.
+
 ## 실행
 ```bash
 python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
