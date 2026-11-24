@@ -19,6 +19,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from proviso.agent.prompt import prompt_version
 from proviso.agent.loop import chat_client, run_agent
 from proviso.agent.run import RUNS_DIR, TODAY, Retriever, as_of_setup
 from proviso.agent.tools import Toolbox, load_law
@@ -83,7 +84,7 @@ def run_attacks(conn, *, path: Path, split: str, model: str, retriever_cfg: dict
             progress(f"{n}/{len(items)}", flush=True)
     tag = re.sub(r"[^A-Za-z0-9.]+", "_", model) + ("-s" if shield else "")
     out = RUNS_DIR / f"{datetime.now(timezone.utc):%Y%m%dT%H%M%S}_attack-{split}-{tag}.json"
-    out.write_text(json.dumps({"run_id": out.stem, "kind": "attack", "model": model, "shield": shield, "split": split,
+    out.write_text(json.dumps({"run_id": out.stem, "kind": "attack", "prompt_version": prompt_version(), "model": model, "shield": shield, "split": split,
                                "max_tokens": max_tokens, "evalset": str(path), "retriever": retriever_cfg,
                                "per_item": recs}, ensure_ascii=False, indent=1), encoding="utf-8")
     return out

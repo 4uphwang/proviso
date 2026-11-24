@@ -26,6 +26,7 @@ from pathlib import Path
 
 from proviso.agent.resilience import LLMError
 from proviso.agent.loop import FINISH, SYSTEM, chat_client, run_agent
+from proviso.agent.prompt import date_note, prompt_version
 from proviso.agent.tools import SPECS, Key, Law, Toolbox, focus, load_law
 from proviso.answer.run import MAX_ARTICLE_CHARS, PROMPTS, build_contexts, context_text, judge, law_names, load_agent_items
 from proviso.config import ROOT
@@ -44,9 +45,7 @@ def assembly(arm: str) -> tuple[int, str] | None:
     """agent_asof 계열이면 (검색 결과 조문 수, 배치 순서)."""
     m = ASOF_ARM.match(arm)
     return (int(m.group(1) or 5), m.group(2) or "score") if m else None
-ASOF_NOTE = ("\n기준일: {when}. 질문은 이 시점의 규정을 묻는다. 도구는 그날 시행 중이던 조문(현행과 다를 수 있다)을 보여 준다. "
-             "답 첫 문장에 '{when} 시행 조문 기준'이라고 밝히고, 그 조문으로 답하라.{year_only}")
-YEAR_ONLY = " 질문이 연도만 말해서 그해 7월 1일을 기준일로 잡았다. 그해 안에 조문이 바뀌었을 수 있다고 덧붙여라."
+# 기준일 문구(DATE_NOTE, YEAR_ONLY)는 agent/prompt.py의 질문 층에 있다(18장 보완)
 EXTRA_CHARS = 1500  # 더한 조문 하나의 상한
 SHORT_CHARS = 1000  # 검색 도구가 조문 하나에 보여 주는 길이와 같다
 
@@ -171,8 +170,7 @@ def as_of_setup(conn, question: str, names, retr: Retriever, laws_at: dict, k: i
         laws_at[when] = load_law(conn, when)
     law = laws_at[when]
     box = Toolbox(law, names, lambda q: retr.search(q, when, k=k), k=k, order=order)
-    note = ASOF_NOTE.format(when=f"{when.year}년 {when.month}월 {when.day}일",
-                            year_only=YEAR_ONLY if year_only(question) else "").strip()
+    note = date_note(f"{when.year}년 {when.month}월 {when.day}일", year_only(question))
     return when, law, box, SYSTEM, note
 
 
@@ -303,7 +301,7 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
     path.write_text(json.dumps({"run_id": path.stem, "kind": "agent", "arm": arm, "model": model, "options": llm.options, "token_limit": token_limit, "guard": guard,
                                 "split": split, "k": 5, "evalset": {"path": str(evalset), "hash": file_sha256(evalset)},
                                 "retriever": retriever_cfg, "snapshot_id": latest_snapshot(conn), "git": git_state(),
-                                "system": SYSTEM, "finish": FINISH, "tools": SPECS, "failed": failed, "per_item": recs}, ensure_ascii=False, default=list),
+                                "prompt_version": prompt_version(), "system": SYSTEM, "finish": FINISH, "tools": SPECS, "failed": failed, "per_item": recs}, ensure_ascii=False, default=list),
                     encoding="utf-8")
     return path
 

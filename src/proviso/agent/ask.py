@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from proviso.agent.prompt import prompt_version
 from proviso.agent.loop import chat_client, run_agent
 from proviso.agent.resilience import FallbackChat, LLMError
 from proviso.agent.run import DEFAULT_MODEL, TODAY, Retriever, as_of_setup, year_notice
@@ -111,7 +112,7 @@ class Asker:
         law = self.law
         r = judge(tr.answer, set(tr.shown), set(law.articles) | set((law_at or law).articles), tr.context, self.names)
         tid = save(self.conn, tr, question=question, answer=tr.answer, refused=r["refused"],
-                   config={"model": model, "fallbacks": [c.model for c in llm.clients[1:]], "llm_events": llm.events,
+                   config={"model": model, "prompt_version": prompt_version(), "fallbacks": [c.model for c in llm.clients[1:]], "llm_events": llm.events,
                            "seed_search": seed_search, "retriever": self.retriever_cfg,
                            "as_of": str(when) if when else None}, snapshot_id=latest_snapshot(self.conn))
         note = year_notice(question, when, r["cites"], law_at or law, self.hist)

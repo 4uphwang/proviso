@@ -12,15 +12,13 @@ from typing import Any, Callable
 import httpx
 
 from proviso.agent.resilience import LLMError, RetryPolicy, limiter_for, parse_retry_after, retryable_status, with_retry
+from proviso.agent import prompt as P
 from proviso.agent.tools import SPECS, Key, Result, Toolbox
-from proviso.answer.run import CITE, REFUSE
 from proviso.config import ROOT
 
-SYSTEM = ("너는 한국 금융 법령으로만 답하는 도우미다. 법령: {laws}.\n"
-          "답하기 전에 반드시 도구로 조문을 찾아 읽어라. 조문에 '대통령령으로 정하는'이 있으면 follow_reference로 시행령을 확인하고, "
-          "용어의 뜻을 물으면 define_term을 써라. 필요한 조문을 다 봤으면 도구를 그만 쓰고 한국어로 간결하게 답하라.\n"
-          + CITE.replace("위 자료", "도구로 본 자료") + REFUSE)
-FINISH = "도구는 더 쓸 수 없다. 지금까지 도구로 본 자료만으로 처음 질문에 답하라."
+# 프롬프트 문구는 agent/prompt.py에 층별 블록으로 있다(18장 보완). 여기 이름은 예전 코드가 쓰던 그대로 둔다.
+SYSTEM = P.SYSTEM
+FINISH = P.FINISH.text
 
 
 @dataclass
@@ -260,8 +258,8 @@ def run_agent(question: str, llm, tools: Toolbox, *, system: str = SYSTEM, max_t
     첫 검색은 안내 없이 질문 그대로 한다.
     """
     laws = ", ".join(sorted({a["doc_title"] for a in tools.law.articles.values()}))
-    user = f"{note}\n\n질문: {question}" if note else question
-    messages: list[dict] = [{"role": "system", "content": system.format(laws=laws)}, {"role": "user", "content": user}]
+    messages: list[dict] = [{"role": "system", "content": system.format(laws=laws)},
+                            {"role": "user", "content": P.user_message(question, note)}]
     tr = Trace()
     asked: set[str] = set()
 
