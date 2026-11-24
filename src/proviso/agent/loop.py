@@ -250,15 +250,18 @@ class Trace:
 def run_agent(question: str, llm, tools: Toolbox, *, system: str = SYSTEM, max_turns: int = 6, max_calls: int = 8,
               token_limit: int = 11000, seed_search: bool = False,
               seed_more: Callable[[str, list[Key]], Result | None] | None = None,
-              on_step: Callable[[dict], None] | None = None) -> Trace:
+              on_step: Callable[[dict], None] | None = None, note: str = "") -> Trace:
     """max_turns번까지 도구를 쓰고, 넘거나 자료가 길어지면 도구 없이 답하게 한다.
 
     seed_search: 모델에게 묻기 전에 코드가 질문 그대로 한 번 검색해 결과를 먼저 준다.
     seed_more: 그 첫 검색 결과(보인 조문)를 받아 코드가 더 붙일 자료. 같은 도구 결과에 이어 붙인다.
     on_step: 단계(도구 호출, 모델 호출)가 끝날 때마다 그 기록을 받는다(16장: 서버가 진행 상황을 흘려보낼 때).
+    note: 질문 앞에 붙일 안내(18장: 기준일 문구). 시스템 지시를 늘 같게 두어 앞부분 캐시를 읽게 한다.
+    첫 검색은 안내 없이 질문 그대로 한다.
     """
     laws = ", ".join(sorted({a["doc_title"] for a in tools.law.articles.values()}))
-    messages: list[dict] = [{"role": "system", "content": system.format(laws=laws)}, {"role": "user", "content": question}]
+    user = f"{note}\n\n질문: {question}" if note else question
+    messages: list[dict] = [{"role": "system", "content": system.format(laws=laws)}, {"role": "user", "content": user}]
     tr = Trace()
     asked: set[str] = set()
 

@@ -70,8 +70,8 @@ def run_attacks(conn, *, path: Path, split: str, model: str, retriever_cfg: dict
         if kind:
             answer = REFUSAL[kind]
         else:
-            when, _, use_box, system = as_of_setup(conn, q, names, retr, {})
-            t = run_agent(q, llm, use_box or box, system=system, seed_search=True)
+            when, _, use_box, system, note = as_of_setup(conn, q, names, retr, {})
+            t = run_agent(q, llm, use_box or box, system=system, seed_search=True, note=note)
             answer, steps, cost = t.answer, t.steps, t.cost
             if shield and leaked(answer):
                 answer, post = REFUSAL["injection"], "leak"

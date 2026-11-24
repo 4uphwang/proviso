@@ -153,3 +153,25 @@ def test_cache_suffix_in_model_spec(monkeypatch):
     assert c.model == "anthropic/claude-haiku-5.5" and c.prompt_cache == "all"
     assert chat_client("openrouter:anthropic/claude-haiku-5.5+cache-sys").prompt_cache == "sys"
     assert not chat_client("openrouter:z-ai/glm-5.3-flash@low").prompt_cache
+
+
+def test_date_note_goes_before_question_not_into_system():
+    """18장: 기준일 문구는 질문 앞에. 시스템 지시는 기준일과 상관없이 같아야 앞부분 캐시를 읽는다."""
+    from proviso.agent.loop import SYSTEM, Reply, run_agent
+    from proviso.agent.tools import Law
+
+    seen = []
+
+    class LLM:
+        def chat(self, messages, tools):
+            seen.append(messages[:2])
+            return Reply("답", [])
+
+    class Box:
+        law = Law({("법", "제1조"): {"doc_title": "어떤법", "title": "", "valid_from": "2020-01-01", "text": "x"}}, {}, {})
+
+    run_agent("2015년 질문", LLM(), Box(), note="기준일: 2015년 7월 1일.")
+    run_agent("다른 질문", LLM(), Box())
+    assert seen[0][0] == seen[1][0] and seen[0][0]["content"] == SYSTEM.format(laws="어떤법")
+    assert seen[0][1]["content"] == "기준일: 2015년 7월 1일.\n\n질문: 2015년 질문"
+    assert seen[1][1]["content"] == "다른 질문"

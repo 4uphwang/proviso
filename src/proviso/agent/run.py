@@ -158,20 +158,22 @@ def flags(it: EvalItem, shown: set[Key], ctx: str) -> dict:
 
 
 def as_of_setup(conn, question: str, names, retr: Retriever, laws_at: dict, k: int = 5,
-                order: str = "score") -> tuple[date | None, Law | None, Toolbox | None, str]:
-    """agent_asof(7장): 질문의 기준일을 읽어 그날 조문으로 도구를 만들고 시스템 메시지에 기준일을 적는다.
-    날짜가 없으면 (None, None, None, SYSTEM)이라 부른 쪽이 현행 도구를 쓴다."""
+                order: str = "score") -> tuple[date | None, Law | None, Toolbox | None, str, str]:
+    """agent_asof(7장): 질문의 기준일을 읽어 그날 조문으로 도구를 만들고 기준일 문구를 만든다.
+    반환: (기준일, 법령, 도구, 시스템 지시, 기준일 문구). 날짜가 없으면 (None, None, None, SYSTEM, "")이라 부른 쪽이 현행 도구를 쓴다.
+    18장: 기준일 문구는 시스템 지시에 붙이지 않고 질문 앞에 둔다. 시스템 지시가 늘 같아야 앞부분 캐시를 읽는다."""
     from proviso.retrieve.when import question_date
 
     when = question_date(question, TODAY)
     if not when:
-        return None, None, None, SYSTEM
+        return None, None, None, SYSTEM, ""
     if when not in laws_at:
         laws_at[when] = load_law(conn, when)
     law = laws_at[when]
     box = Toolbox(law, names, lambda q: retr.search(q, when, k=k), k=k, order=order)
-    return when, law, box, SYSTEM + ASOF_NOTE.format(when=f"{when.year}년 {when.month}월 {when.day}일",
-                                                     year_only=YEAR_ONLY if year_only(question) else "")
+    note = ASOF_NOTE.format(when=f"{when.year}년 {when.month}월 {when.day}일",
+                            year_only=YEAR_ONLY if year_only(question) else "").strip()
+    return when, law, box, SYSTEM, note
 
 
 def year_only(question: str) -> bool:
@@ -257,12 +259,12 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
             shown = {(a["doc_id"], a["article"]) for a in arts}
             extra = {"seconds": plain.last_seconds + contexts[it.id]["seconds"], "llm_seconds": plain.last_seconds}
         else:
-            when, use_law, use_box, system = (as_of_setup(conn, it.question, names, retr, laws_at, k, order) if asm
-                                              else (None, law, box, SYSTEM))
+            when, use_law, use_box, system, note = (as_of_setup(conn, it.question, names, retr, laws_at, k, order) if asm
+                                                    else (None, law, box, SYSTEM, ""))
             if when is None:
                 use_law, use_box = law, box
             try:
-                t = run_agent(it.question, llm, use_box, system=system, token_limit=token_limit,
+                t = run_agent(it.question, llm, use_box, system=system, note=note, token_limit=token_limit,
                               seed_search=arm in ("agent_seed", "agent_seed_follow") or bool(asm),
                               seed_more=(lambda q, shown: box.attach(linked_top(q, shown, law, retr), q, EXTRA_CHARS))
                               if arm == "agent_seed_follow" else None)

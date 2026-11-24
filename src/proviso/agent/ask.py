@@ -99,11 +99,11 @@ class Asker:
         kind = screen(question, attacks=True, names=self.names, known=self.known)  # 10·11장: 모델 전에 거른다
         if kind:
             return Answer(present(REFUSAL[kind], []), refused=True, kind="guard", seconds=time.perf_counter() - t0)
-        when, law_at, box, system = as_of_setup(self.conn, question, self.names, self.retr, self.laws_at)
+        when, law_at, box, system, note = as_of_setup(self.conn, question, self.names, self.retr, self.laws_at)
         llm = chain(model)
         try:
             tr = run_agent(question, llm, box or Toolbox(self.law, self.names, self.retr.search), system=system,
-                           seed_search=seed_search, on_step=on_step)
+                           seed_search=seed_search, on_step=on_step, note=note)
         except LLMError:
             return Answer(UNAVAILABLE, kind="unavailable", seconds=time.perf_counter() - t0)
         if leaked(tr.answer):  # 11장: 시스템 지시문이 답에 나오면 거절로 바꾼다
