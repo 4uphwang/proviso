@@ -91,7 +91,7 @@ class Asker:
 
     def answer(self, question: str, *, model: str | None = None, seed_search: bool = True,
                on_step: Callable[[dict], None] | None = None) -> Answer:
-        from proviso.answer.guard import REFUSAL, leaked, screen, uncited
+        from proviso.answer.guard import REFUSAL, leaked, screen, strip_code, uncited
         from proviso.answer.pii import mask
 
         t0 = time.perf_counter()
@@ -111,6 +111,7 @@ class Asker:
             tr.answer = REFUSAL["injection"]
         elif uncited(tr.answer, self.names):  # 인용이 하나도 없는 답은 내보내지 않는다(계획서 §5.2)
             tr.answer = REFUSAL["uncited"]
+        tr.answer, _ = strip_code(tr.answer)  # 법령 답에는 코드가 필요 없다(범위 제한)
         law = self.law
         r = judge(tr.answer, set(tr.shown), set(law.articles) | set((law_at or law).articles), tr.context, self.names)
         tid = save(self.conn, tr, question=question, answer=tr.answer, refused=r["refused"],

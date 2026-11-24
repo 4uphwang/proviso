@@ -9,9 +9,10 @@ from proviso.agent.tools import SPECS
 
 h = lambda s: hashlib.sha256(s.encode()).hexdigest()  # noqa: E731
 
-# 블록으로 나누기 전(커밋 4a36229)의 문자열 해시. 프롬프트를 일부러 바꾸면 여기와 prompt_version이 함께 바뀐다.
+# 블록으로 나누기 전(커밋 4a36229)의 문자열 해시(시스템 지시는 범위 제한을 넣은 뒤 값). 프롬프트를 일부러 바꾸면 여기와 prompt_version이 함께 바뀐다.
 OLD = {
-    "system": "10b38749aa3745575bc763984c08dc530fe4575fea2be1ab9e45d5b491959b79",
+    # 범위 제한 블록을 넣으며 일부러 바꿨다(나누기 직후 값 10b38749…). 정상 답 회귀는 test 171문항으로 확인
+    "system": "048545b95eb39a4fab3ce0c66b05fa8f72dfb46ac882a973d1e445ab8766308b",
     "finish": "03ed486f56804fa48dda8b80bbea8627c098905acc6a89be745f3e77e0972e7b",
     "date_note": "31f4b4cd5eaa72e07ef42095c61f9373553b0e08941502cb5114eeb40e019d56",
     "year_only": "5402d27f0ccb18ea9934efa0b6b6b63662f66cc861076171d8c3ed62e58c7985",

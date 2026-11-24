@@ -43,6 +43,11 @@ SYSTEM_BLOCKS: list[Block] = [
           "용어의 뜻을 물으면 define_term을 써라. 필요한 조문을 다 봤으면 도구를 그만 쓰고 한국어로 간결하게 답하라.\n", "6장"),
     Block("cite", FIXED, CITE.replace("위 자료", "도구로 본 자료"), "5장"),
     Block("refuse", FIXED, REFUSE, "5장"),
+    # 범위 제한: 법령 질문에 다른 일(코드, 번역, 글쓰기 …)을 끼워 넣으면 그 일까지 해 줬다(범위 문항 dev 6/6)
+    Block("scope", FIXED,
+          "금융 법령 질문이 아닌 요청(코드 작성, 번역, 글쓰기, 홍보 문구, 법령과 상관없는 계산이나 상식 등)은 하지 마라. "
+          "법령 질문과 섞여 있으면 법령 부분만 답하고, 끝에 '법령 질문 외의 요청은 처리하지 않습니다.'라고 한 줄 덧붙여라.\n",
+          "범위 제한"),
 ]
 
 DATE_NOTE = Block("date_note", QUESTION,
@@ -53,6 +58,7 @@ YEAR_ONLY = Block("year_only", QUESTION,
 FINISH = Block("finish", CALL, "도구는 더 쓸 수 없다. 지금까지 도구로 본 자료만으로 처음 질문에 답하라.", "6장")
 
 SYSTEM = "".join(b.text for b in SYSTEM_BLOCKS)   # 틀. {laws}는 run_agent가 채운다
+SYSTEM_SCOPED = SYSTEM  # 범위 제한 블록이 기본에 들어갔다(예전 실험 플래그 호환)
 
 
 def system_message(laws: str) -> str:
