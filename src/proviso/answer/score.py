@@ -27,8 +27,10 @@ def keyword_hit(keyword: str, answer: str) -> bool:
 
 
 def item_scores(it: EvalItem, rec: dict, a: dict) -> dict[str, float]:
-    """문항 하나의 값. 해당 없는 값은 넣지 않는다."""
+    """문항 하나의 값. 해당 없는 값은 넣지 않는다. 14장: 모델 호출이 실패한 문항은 값이 없다(거절로 세지 않는다)."""
     out: dict[str, float] = {}
+    if a.get("error"):
+        return out
     st = [c["status"] for c in a["cites"]]
     if "all_gold_in_context" in a and it.answerable and it.category != "temporal":  # 6장: 설정마다 자료가 다르다
         out["정답 조문을 모두 봄"] = float(a["all_gold_in_context"])

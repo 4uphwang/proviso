@@ -30,7 +30,9 @@ def spans(tr: Trace) -> list[dict]:
         else:
             llm_seen += 1
             out.append(base | {"kind": "llm", "name": "chat", "input": None,
-                               "output": {"final": llm_seen == llm_total}, "input_tokens": s["prompt_tokens"],
+                               "output": {"final": llm_seen == llm_total,
+                                          **{k: s[k] for k in ("attempts", "model", "fallback_from") if k in s}},
+                               "input_tokens": s["prompt_tokens"],
                                "output_tokens": s["output_tokens"]})
     return out
 

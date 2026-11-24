@@ -24,6 +24,7 @@ import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from proviso.agent.resilience import LLMError
 from proviso.agent.loop import FINISH, SYSTEM, chat_client, run_agent
 from proviso.agent.tools import SPECS, Key, Law, Toolbox, focus, load_law
 from proviso.answer.run import MAX_ARTICLE_CHARS, PROMPTS, build_contexts, context_text, judge, law_names, load_agent_items
@@ -233,6 +234,7 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
     hist = TextHistory(conn)
     laws_at: dict[date, Law] = {}
     recs = []
+    failed = 0
     fixed = {it.id: fixed_arts(arm, it.question, contexts[it.id]["arts"], law, retr) for it in items} if arm in FIXED else {}
     if arm in FIXED:  # 자료를 다 고른 뒤에 답한다
         retr.free()
@@ -256,10 +258,17 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
                                               else (None, law, box, SYSTEM))
             if when is None:
                 use_law, use_box = law, box
-            t = run_agent(it.question, llm, use_box, system=system, token_limit=token_limit,
-                          seed_search=arm in ("agent_seed", "agent_seed_follow") or bool(asm),
-                          seed_more=(lambda q, shown: box.attach(linked_top(q, shown, law, retr), q, EXTRA_CHARS))
-                          if arm == "agent_seed_follow" else None)
+            try:
+                t = run_agent(it.question, llm, use_box, system=system, token_limit=token_limit,
+                              seed_search=arm in ("agent_seed", "agent_seed_follow") or bool(asm),
+                              seed_more=(lambda q, shown: box.attach(linked_top(q, shown, law, retr), q, EXTRA_CHARS))
+                              if arm == "agent_seed_follow" else None)
+            except LLMError as e:  # 14장: 평가 실행은 대체 모델을 쓰지 않고 실패로 남긴다(채점에서 빠진다)
+                failed += 1
+                recs.append({"id": it.id, "arms": {arm: {"answer": "", "refused": False, "cites": [], "error": str(e)[:300],
+                                                        "attempts": getattr(e, "attempts", 1)}}})
+                progress(f"{it.id} 모델 호출 실패: {str(e)[:120]}", flush=True)
+                continue
             answer, ctx, shown = t.answer, t.context, set(t.shown)
             search_sec = sum(retr.seconds(s["args"]["query"], when, k) for s in t.steps
                              if s.get("tool") == "search" and not s["repeat"] and isinstance(s["args"], dict) and "query" in s["args"])
@@ -289,7 +298,7 @@ def run(conn, *, evalset: Path, split: str, arm: str, model: str, retriever_cfg:
     path.write_text(json.dumps({"run_id": path.stem, "kind": "agent", "arm": arm, "model": model, "options": llm.options, "token_limit": token_limit, "guard": guard,
                                 "split": split, "k": 5, "evalset": {"path": str(evalset), "hash": file_sha256(evalset)},
                                 "retriever": retriever_cfg, "snapshot_id": latest_snapshot(conn), "git": git_state(),
-                                "system": SYSTEM, "finish": FINISH, "tools": SPECS, "per_item": recs}, ensure_ascii=False, default=list),
+                                "system": SYSTEM, "finish": FINISH, "tools": SPECS, "failed": failed, "per_item": recs}, ensure_ascii=False, default=list),
                     encoding="utf-8")
     return path
 

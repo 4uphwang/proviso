@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 import httpx
 
+from proviso.agent.resilience import LLMError, RetryPolicy, limiter_for, parse_retry_after, retryable_status, with_retry
 from proviso.agent.tools import SPECS, Key, Result, Toolbox
 from proviso.answer.run import CITE, REFUSE
 from proviso.config import ROOT
@@ -31,16 +32,22 @@ class Reply:
     seconds: float = 0.0
     cost: float = 0.0           # API 모델이 알려 준 요금(달러). 로컬은 0
     provider: str = ""          # 오픈라우터가 실제로 보낸 곳
+    attempts: int = 1           # 14장: 재시도까지 친 시도 횟수
+    model: str = ""             # 14장: 대체 모델을 쓰면 실제로 답한 모델
+    fallback_from: str = ""     # 14장: 1순위가 실패해 넘어왔으면 그 1순위 모델
 
 
 class OllamaChat:
     """도구를 쓰는 대화. 같은 입력의 응답은 파일에 저장해 다시 쓴다(tool_call id는 뺀다)."""
 
     def __init__(self, model: str, *, num_ctx: int = 16384, num_predict: int = 500, host: str = "http://localhost:11434",
-                 timeout: float = 600, cache: Path = ROOT / "data" / "cache" / "llm_chat"):
+                 timeout: float = 600, cache: Path = ROOT / "data" / "cache" / "llm_chat", policy: RetryPolicy | None = None,
+                 transport: httpx.BaseTransport | None = None):
+        """timeout: 로컬 4B·9B는 긴 자료에서 한 번에 수십 초 걸려 API(60초)보다 길게 둔다."""
         self.model = model
         self.options = {"temperature": 0.0, "seed": 0, "num_ctx": num_ctx, "num_predict": num_predict, "presence_penalty": 0.0}
-        self._http = httpx.Client(base_url=host, timeout=timeout)
+        self.policy = policy or RetryPolicy(timeout=timeout)
+        self._http = httpx.Client(base_url=host, timeout=self.policy.timeout, transport=transport)
         self._cache = cache
 
     def chat(self, messages: list[dict], tools: list[dict] | None) -> Reply:
@@ -51,13 +58,11 @@ class OllamaChat:
         if path.exists():
             return Reply(**json.loads(path.read_text(encoding="utf-8")))
         t0 = time.perf_counter()
-        r = self._http.post("/api/chat", json=body)
-        r.raise_for_status()
-        d = r.json()
+        d, attempts = with_retry(lambda: _post(self._http, "/api/chat", body), self.policy)
         calls = [{"function": {"name": c["function"]["name"], "arguments": c["function"].get("arguments") or {}}}
                  for c in d["message"].get("tool_calls") or []]
         rep = Reply((d["message"].get("content") or "").strip(), calls, d.get("prompt_eval_count") or 0,
-                    d.get("eval_count") or 0, round(time.perf_counter() - t0, 3))
+                    d.get("eval_count") or 0, round(time.perf_counter() - t0, 3), attempts=attempts, model=self.model)
         self._cache.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(rep.__dict__, ensure_ascii=False), encoding="utf-8")
         return rep
@@ -72,7 +77,8 @@ class OpenAIChat:
 
     def __init__(self, model: str, *, base_url: str = "https://openrouter.ai/api/v1", key_env: str = "OPENROUTER_API_KEY",
                  num_predict: int = 500, timeout: float = 300, cache: Path = ROOT / "data" / "cache" / "llm_chat",
-                 reasoning: str | None = None, repeat: int = 0):
+                 reasoning: str | None = None, repeat: int = 0, policy: RetryPolicy | None = None,
+                 per_minute: int = 60, transport: httpx.BaseTransport | None = None):
         """reasoning: None이면 추론을 끈다. 끌 수 없는 모델(gpt-oss, GLM 등)은 'low'처럼 가장 낮은 단계를 준다(결과에 남는다)."""
         import os
 
@@ -88,7 +94,10 @@ class OpenAIChat:
         if reasoning:  # 추론 토큰도 max_tokens에 들어가므로 답이 잘리지 않게 넉넉히 준다
             self.options["max_tokens"] = num_predict + 2000
         self._key = key  # 헤더로만 보낸다. 저장하는 파일(응답, 결과, 기록)에는 넣지 않는다
-        self._http = httpx.Client(base_url=base_url, timeout=timeout, headers={"Authorization": f"Bearer {key}"})
+        self.policy = policy or RetryPolicy(timeout=60.0)  # 14장: 호출마다 60초, 429·5xx만 최대 3번 다시
+        self._limit = limiter_for(base_url, per_minute)  # 14장: 평가 실행이 회사의 분당 한도에 걸리지 않게
+        self._http = httpx.Client(base_url=base_url, timeout=self.policy.timeout, transport=transport,
+                                  headers={"Authorization": f"Bearer {key}"})
         self._cache = cache
         self.total_cost = 0.0
         self.repeat = repeat  # 9장: API 모델은 temperature 0이어도 답이 매번 달라서 반복한다. 0이면 처음 돌린 응답 그대로
@@ -127,13 +136,17 @@ class OpenAIChat:
         if path.exists():
             return Reply(**json.loads(path.read_text(encoding="utf-8")))
         t0 = time.perf_counter()
-        try:
-            r = self._http.post("/chat/completions", json=body)
-        except httpx.HTTPError as e:
-            raise RuntimeError(self.redact(f"API 연결 오류: {e}")) from None
-        if r.status_code >= 400:
-            raise RuntimeError(self.redact(f"API 오류 {r.status_code}: {r.text[:300]}"))
-        d = r.json()
+
+        def once() -> dict:
+            self._limit.acquire()
+            try:
+                return _post(self._http, "/chat/completions", body)
+            except LLMError as e:
+                raise LLMError(self.redact(str(e)), status=e.status, retryable=e.retryable, retry_after=e.retry_after) from None
+
+        d, attempts = with_retry(once, self.policy)
+        if not d.get("choices"):  # 오픈라우터는 공급자 오류를 200 안의 error로 주기도 한다
+            raise LLMError(self.redact(f"API 응답에 답이 없음: {str(d.get('error'))[:200]}"), retryable=False)
         msg = d["choices"][0]["message"]
         calls = []
         for c in msg.get("tool_calls") or []:
@@ -144,11 +157,36 @@ class OpenAIChat:
             calls.append({"function": {"name": c["function"]["name"], "arguments": args}})
         u = d.get("usage") or {}
         rep = Reply((msg.get("content") or "").strip(), calls, u.get("prompt_tokens") or 0, u.get("completion_tokens") or 0,
-                    round(time.perf_counter() - t0, 3), float(u.get("cost") or 0.0), d.get("provider") or "")
+                    round(time.perf_counter() - t0, 3), float(u.get("cost") or 0.0), d.get("provider") or "",
+                    attempts=attempts, model=self.model)
         self.total_cost += rep.cost
         self._cache.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(rep.__dict__, ensure_ascii=False), encoding="utf-8")
         return rep
+
+
+def _reason(r: httpx.Response) -> str:
+    """오류 응답에서 error.message만 꺼낸다. 본문 전체에는 계정 id(user_id) 같은 값이 섞여 오므로 기록에 남기지 않는다."""
+    try:
+        e = r.json().get("error")
+        msg = e.get("message") if isinstance(e, dict) else e
+        return str(msg)[:200] if msg else "(이유 없음)"
+    except (ValueError, AttributeError):
+        return r.text[:120].replace("\n", " ")
+
+
+def _post(http: httpx.Client, path: str, body: dict) -> dict:
+    """POST 하나. 실패는 LLMError로 바꾼다(재시도할 만한지 표시)."""
+    try:
+        r = http.post(path, json=body)
+    except httpx.TimeoutException as e:
+        raise LLMError(f"시간 초과: {type(e).__name__}", retryable=True) from None
+    except httpx.TransportError as e:
+        raise LLMError(f"연결 오류: {type(e).__name__}: {e}", retryable=True) from None
+    if r.status_code >= 400:
+        raise LLMError(f"API 오류 {r.status_code}: {_reason(r)}", status=r.status_code,
+                       retryable=retryable_status(r.status_code), retry_after=parse_retry_after(r.headers.get("retry-after")))
+    return r.json()
 
 
 def chat_client(model: str, max_tokens: int = 500, repeat: int = 0):
@@ -219,7 +257,12 @@ def run_agent(question: str, llm, tools: Toolbox, *, system: str = SYSTEM, max_t
         tr.prompt_tokens += rep.prompt_tokens
         tr.output_tokens += rep.output_tokens
         tr.cost += rep.cost
-        tr.steps.append({"llm": True, "prompt_tokens": rep.prompt_tokens, "output_tokens": rep.output_tokens, "seconds": rep.seconds})
+        step = {"llm": True, "prompt_tokens": rep.prompt_tokens, "output_tokens": rep.output_tokens, "seconds": rep.seconds}
+        if getattr(rep, "attempts", 1) > 1:  # 14장: 재시도·대체가 있었을 때만 남긴다(전 결과 파일과 모양을 같게)
+            step["attempts"] = rep.attempts
+        if getattr(rep, "fallback_from", ""):
+            step |= {"model": rep.model, "fallback_from": rep.fallback_from}
+        tr.steps.append(step)
         return rep
 
     if seed_search:

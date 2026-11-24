@@ -25,7 +25,7 @@ def questions(path: Path = EVALSET) -> dict[str, dict]:
 
 def answered(run: dict, arm: str = "agent_asof") -> list[tuple[dict, dict]]:
     """(문항 기록, 그 팔의 결과) 중 거절하지 않은 답."""
-    return [(it, it["arms"][arm]) for it in run["per_item"] if not it["arms"][arm]["refused"]]
+    return [(it, it["arms"][arm]) for it in run["per_item"] if not it["arms"][arm]["refused"] and not it["arms"][arm].get("error")]
 
 
 class Sources:
