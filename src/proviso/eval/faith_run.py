@@ -70,3 +70,53 @@ def summary(faith: dict) -> dict:
             "unparsed": sum(not r["parsed"] for r in faith["per_item"]),
             "faithfulness": sum(r["score"] for r in rs) / len(rs) if rs else None,
             "unfaithful_rate": sum(r["unfaithful"] for r in rs) / len(rs) if rs else None}
+
+
+def run_faith_batch(conn, run_paths: list[Path], model: str, *, arm: str = "agent_asof", max_tokens: int = 2000,
+                    client=None, progress=print, every: float = 30.0,
+                    ids: dict[str, set[str]] | None = None) -> tuple[list[Path], dict]:
+    """19장: 여러 실행 결과의 답을 배치 하나로 맡겨 판정한다. 결과는 run_faith와 같은 모양으로 실행마다 쓴다.
+    ids: {실행 run_id: 문항 id들}을 주면 그 문항만.
+    반환: (판정 결과 파일들, 배치 요약 {batch_id, status, requests, seconds, cost, errors})."""
+    from proviso.agent.batch import BatchClient, content_of
+    from proviso.answer.faith import build_prompt, parse
+
+    llm = chat_client(model, max_tokens)  # 요청 본문을 보통 호출과 똑같이 만들려고 쓴다(부르지는 않는다)
+    qs, src = questions(), Sources(conn)
+    runs = [json.loads(p.read_text(encoding="utf-8")) for p in run_paths]
+    reqs, where = [], {}
+    for k, run in enumerate(runs):
+        for it, a in answered(run, arm):
+            if ids is not None and it["id"] not in ids.get(run["run_id"], set()):
+                continue
+            cid = f"{k}:{it['id']}"
+            msgs = [{"role": "user", "content": build_prompt(qs[it["id"]]["question"], a["answer"], src.text(a))}]
+            reqs.append((cid, llm.request_body(msgs, None)))
+            where[cid] = (k, it["id"])
+    client = client or BatchClient()
+    batch_id = client.submit(llm.model, reqs)
+    progress(f"배치 {batch_id}: 요청 {len(reqs)}개를 맡김", flush=True)
+    res = client.wait(batch_id, every=every, progress=lambda m: progress(m, flush=True))
+    per_run: list[list[dict]] = [[] for _ in runs]
+    for cid, (k, iid) in where.items():
+        if cid in res.bodies:
+            f = parse(content_of(res.bodies[cid]))
+            per_run[k].append({"id": iid, "parsed": f.parsed, "n_claims": f.n, "score": f.score,
+                               "unfaithful": f.unfaithful if f.parsed else None, "claims": f.claims})
+        else:
+            per_run[k].append({"id": iid, "parsed": False, "n_claims": 0, "score": None, "unfaithful": None, "claims": [],
+                               "error": res.errors.get(cid, "결과 없음")})
+    tag = re.sub(r"[^A-Za-z0-9.]+", "_", model) + "-batch"
+    now = datetime.now(timezone.utc)
+    outs = []
+    for run, recs in zip(runs, per_run):
+        out = RUNS_DIR / f"{now:%Y%m%dT%H%M%S}_faith-{run['run_id'][16:]}-by-{tag}.json"
+        out.write_text(json.dumps({"run_id": out.stem, "kind": "faith", "mode": "batch", "batch_id": batch_id,
+                                   "of": run["run_id"], "answer_model": run["model"], "judge": model, "split": run["split"],
+                                   "cost": None, "per_item": recs}, ensure_ascii=False, indent=1), encoding="utf-8")
+        outs.append(out)
+    info = {"batch_id": batch_id, "status": res.status, "requests": len(reqs), "results": len(res.bodies),
+            "errors": len(res.errors), "seconds": res.seconds, "polls": res.polls, "usage": res.usage}
+    (RUNS_DIR / f"{now:%Y%m%dT%H%M%S}_batch-{tag}.json").write_text(json.dumps(info, ensure_ascii=False, indent=1),
+                                                                      encoding="utf-8")
+    return outs, info

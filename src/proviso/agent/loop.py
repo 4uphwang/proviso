@@ -130,13 +130,18 @@ class OpenAIChat:
                 out.append({"role": m["role"], "content": m["content"]})
         return out
 
-    def chat(self, messages: list[dict], tools: list[dict] | None) -> Reply:
+    def request_body(self, messages: list[dict], tools: list[dict] | None) -> dict:
+        """보통 호출과 배치(19장)가 같은 요청 본문을 쓰도록."""
         msgs = self.convert(messages)
         if self.prompt_cache:
             msgs = mark_cache(msgs, self.prompt_cache)
         body = {"model": self.model, "messages": msgs, **self.options, "usage": {"include": True}}
         if tools:
             body["tools"] = tools
+        return body
+
+    def chat(self, messages: list[dict], tools: list[dict] | None) -> Reply:
+        body = self.request_body(messages, tools)
         key = body if not self.repeat else {**body, "_repeat": self.repeat}  # 반복 번호는 저장 이름에만 쓰고 API에는 보내지 않는다
         path = self._cache / (hashlib.sha256(json.dumps(key, ensure_ascii=False, sort_keys=True).encode()).hexdigest() + ".json")
         if path.exists():
