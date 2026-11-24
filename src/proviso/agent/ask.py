@@ -91,12 +91,13 @@ class Asker:
 
     def answer(self, question: str, *, model: str | None = None, seed_search: bool = True,
                on_step: Callable[[dict], None] | None = None) -> Answer:
-        from proviso.answer.guard import REFUSAL, leaked, screen, strip_code, uncited
+        from proviso.answer.guard import REFUSAL, leaked, screen, strip_code, unverified
+        from proviso.answer.normalize import normalize
         from proviso.answer.pii import mask
 
         t0 = time.perf_counter()
         model = pick_model(model or self.model)
-        question, _ = mask(question)  # 11장: 개인정보는 모델과 기록에 넘기기 전에 가린다(원문은 저장하지 않는다)
+        question, _ = mask(normalize(question))  # 11장: 개인정보는 모델과 기록에 넘기기 전에 가린다(원문은 저장하지 않는다)
         kind = screen(question, attacks=True, names=self.names, known=self.known)  # 10·11장: 모델 전에 거른다
         if kind:
             return Answer(present(REFUSAL[kind], []), refused=True, kind="guard", seconds=time.perf_counter() - t0)
@@ -109,7 +110,7 @@ class Asker:
             return Answer(UNAVAILABLE, kind="unavailable", seconds=time.perf_counter() - t0)
         if leaked(tr.answer):  # 11장: 시스템 지시문이 답에 나오면 거절로 바꾼다
             tr.answer = REFUSAL["injection"]
-        elif uncited(tr.answer, self.names):  # 인용이 하나도 없는 답은 내보내지 않는다(계획서 §5.2)
+        elif unverified(tr.answer, self.names, set(tr.shown)):  # 이번에 열어 본 조문을 하나도 인용하지 않은 답은 내보내지 않는다
             tr.answer = REFUSAL["uncited"]
         tr.answer, _ = strip_code(tr.answer)  # 법령 답에는 코드가 필요 없다(범위 제한)
         law = self.law

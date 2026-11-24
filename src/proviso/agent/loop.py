@@ -55,8 +55,8 @@ class OllamaChat:
         if tools:
             body["tools"] = tools
         path = self._cache / (hashlib.sha256(json.dumps(body, ensure_ascii=False, sort_keys=True).encode()).hexdigest() + ".json")
-        if path.exists():
-            return Reply(**json.loads(path.read_text(encoding="utf-8")))
+        if (hit := _cached(path)) is not None:
+            return hit
         t0 = time.perf_counter()
         d, attempts = with_retry(lambda: _post(self._http, "/api/chat", body), self.policy)
         calls = [{"function": {"name": c["function"]["name"], "arguments": c["function"].get("arguments") or {}}}
@@ -64,7 +64,7 @@ class OllamaChat:
         rep = Reply((d["message"].get("content") or "").strip(), calls, d.get("prompt_eval_count") or 0,
                     d.get("eval_count") or 0, round(time.perf_counter() - t0, 3), attempts=attempts, model=self.model)
         self._cache.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(rep.__dict__, ensure_ascii=False), encoding="utf-8")
+        _save(path, rep)
         return rep
 
 
@@ -144,8 +144,8 @@ class OpenAIChat:
         body = self.request_body(messages, tools)
         key = body if not self.repeat else {**body, "_repeat": self.repeat}  # 반복 번호는 저장 이름에만 쓰고 API에는 보내지 않는다
         path = self._cache / (hashlib.sha256(json.dumps(key, ensure_ascii=False, sort_keys=True).encode()).hexdigest() + ".json")
-        if path.exists():
-            return Reply(**json.loads(path.read_text(encoding="utf-8")))
+        if (hit := _cached(path)) is not None:
+            return hit
         t0 = time.perf_counter()
 
         def once() -> dict:
@@ -173,8 +173,27 @@ class OpenAIChat:
                     cache_write_tokens=_detail(u, "cache_write_tokens"))
         self.total_cost += rep.cost
         self._cache.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(rep.__dict__, ensure_ascii=False), encoding="utf-8")
+        _save(path, rep)
         return rep
+
+
+def _cached(path: Path) -> Reply | None:
+    """저장된 응답. 파일이 없거나 깨졌으면(동시에 쓰다 남은 것) None이라 다시 부른다."""
+    try:
+        return Reply(**json.loads(path.read_text(encoding="utf-8")))
+    except (FileNotFoundError, json.JSONDecodeError, TypeError):
+        return None
+
+
+def _save(path: Path, rep: Reply) -> None:
+    """임시 파일에 쓰고 바꿔 끼운다. 여러 스레드가 같은 응답을 동시에 써도 파일이 깨지지 않게."""
+    import os
+    import tempfile
+
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-", suffix=".json")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(json.dumps(rep.__dict__, ensure_ascii=False))
+    os.replace(tmp, path)
 
 
 def mark_cache(msgs: list[dict], mode: str = "all") -> list[dict]:

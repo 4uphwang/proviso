@@ -105,6 +105,18 @@ def uncited(answer: str, names) -> bool:
     return not is_refusal(answer) and not parse(answer, names)
 
 
+def unverified(answer: str, names, shown: set) -> bool:
+    """거절이 아닌데, 이번에 도구로 열어 본 조문을 하나도 인용하지 않은 답(조사 보고서 3순위).
+    '인용 없는 답 거절'을 아무 조문 번호나 붙여 넘는 길을 막는다. 정상 답 830여 개 중 해당은 1개(4B)였다."""
+    from proviso.answer.cite import is_refusal, parse
+
+    if is_refusal(answer):
+        return False
+    arts = {a for _, a in shown}
+    return not any((c.doc_id and (c.doc_id, c.article) in shown) or (c.doc_id is None and c.outside is None and c.article in arts)
+                   for c in parse(answer, names))
+
+
 def leaked(answer: str) -> bool:
     """답에 시스템 지시문이 그대로 들어 있는가."""
     return any(m in answer for m in SYSTEM_MARKS)

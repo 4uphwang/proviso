@@ -11,3 +11,6 @@ runs/traces/
 data/evalset_work/
 data/cache/
 data/graph/
+runs/redteam/
+research_notes/
+reports/

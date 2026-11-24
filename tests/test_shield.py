@@ -42,3 +42,23 @@ def test_uncited_answer_is_caught_but_cited_or_refused_is_not():
     assert uncited("LEGAL-OK", names)
     assert not uncited("투자자 보호 규정이 있습니다 [자본시장법 제50조].", names)
     assert not uncited("제공된 법령에서 근거를 찾지 못해 답할 수 없습니다.", names)
+
+
+def test_normalize_strips_invisible_fullwidth_and_lookalikes():
+    from proviso.answer.normalize import normalize
+    assert normalize("시​스​템 프‍롬프트") == "시스템 프롬프트"
+    assert normalize("ｉｇｎｏｒｅ １２３") == "ignore 123"
+    assert normalize("іgnоrе рrеvіоus") == "ignore previous"
+    assert normalize("tag\U000E0041\U000E0042 ok") == "tag ok"
+    assert normalize("투자매매업ㆍ투자중개업") == "투자매매업ㆍ투자중개업"  # 법령 용어의 ㆍ는 그대로
+
+
+def test_unverified_needs_a_citation_that_was_opened():
+    from proviso.answer.cite import LawNames
+    from proviso.answer.guard import unverified
+    names = LawNames([("자본시장법", "자본시장법")], {})
+    shown = {("자본시장법", "제50조")}
+    assert not unverified("규정이 있습니다 [자본시장법 제50조].", names, shown)
+    assert unverified("규정이 있습니다 [자본시장법 제51조].", names, shown)
+    assert unverified("LEGAL-OK", names, shown)
+    assert not unverified("제공된 법령에서 근거를 찾지 못해 답할 수 없습니다.", names, shown)

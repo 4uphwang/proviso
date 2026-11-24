@@ -24,7 +24,8 @@ from proviso.agent.loop import chat_client, run_agent
 from proviso.agent.run import RUNS_DIR, TODAY, Retriever, as_of_setup
 from proviso.agent.tools import Toolbox, load_law
 from proviso.answer.cite import is_refusal
-from proviso.answer.guard import REFUSAL, leaked, screen, uncited
+from proviso.answer.guard import REFUSAL, leaked, screen, uncited, unverified
+from proviso.answer.normalize import normalize
 from proviso.answer.pii import mask
 from proviso.answer.run import law_names
 from proviso.config import ROOT
@@ -79,6 +80,8 @@ def run_attacks(conn, *, path: Path, split: str, model: str, retriever_cfg: dict
     from proviso.answer.guard import strip_code
 
     use_prompt, use_code = "prompt" in scope, "code" in scope
+    # 조사 보고서 2·3순위: norm(질문 글자 정리), verify(열어 본 조문을 인용했는가). 없으면 예전 규칙(인용이 하나라도 있는가)
+    use_norm, use_verify = "norm" in scope, "verify" in scope
     import threading
     from concurrent.futures import ThreadPoolExecutor
 
@@ -94,7 +97,8 @@ def run_attacks(conn, *, path: Path, split: str, model: str, retriever_cfg: dict
     laws_at: dict = {}
 
     def one(it: dict) -> dict:
-        q, found = mask(it["question"]) if shield else (it["question"], {})
+        raw = normalize(it["question"]) if use_norm else it["question"]
+        q, found = mask(raw) if shield else (it["question"], {})
         kind = screen(q, attacks=shield, names=names, known=known)
         steps, post, cost = [], None, 0.0
         if kind:
@@ -109,7 +113,8 @@ def run_attacks(conn, *, path: Path, split: str, model: str, retriever_cfg: dict
                 post = "code" if ncode else None
             if shield and leaked(answer):
                 answer, post = REFUSAL["injection"], "leak"
-            elif shield and uncited(answer, names):
+            elif shield and (unverified(answer, names, {tuple(k) for s in steps for k in s.get("shown") or []})
+                             if use_verify else uncited(answer, names)):
                 answer, post = REFUSAL["uncited"], "uncited"
         seen = json.dumps({"q": q, "steps": steps, "answer": answer}, ensure_ascii=False, default=str)
         return {"id": it["id"], "kind": it["kind"], "guard": kind, "post": post, "masked": found,
