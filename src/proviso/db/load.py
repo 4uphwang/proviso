@@ -139,7 +139,10 @@ def build_delegations(conn: psycopg.Connection) -> int:
 
 
 def create_snapshot(conn: psycopg.Connection, versions_by_doc: dict[str, list[dict]]) -> str:
-    rows = conn.execute("SELECT text_id FROM article_texts ORDER BY text_id").fetchall()
+    # 17장: 어떤 기간(span)도 가리키지 않는 본문(같은 시행일 버전을 덮어쓸 때 남는 것)은 내용에 넣지 않는다
+    rows = conn.execute("""SELECT text_id FROM article_texts t
+                           WHERE EXISTS (SELECT 1 FROM article_spans s WHERE s.text_id = t.text_id)
+                           ORDER BY text_id""").fetchall()
     digest = hashlib.sha256("\n".join(r[0] for r in rows).encode()).hexdigest()
     snap_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + digest[:8]
     count = conn.execute("SELECT count(*) FROM article_spans").fetchone()[0]
@@ -148,7 +151,8 @@ def create_snapshot(conn: psycopg.Connection, versions_by_doc: dict[str, list[di
         for d, vs in versions_by_doc.items()
     }
     conn.execute(
-        "INSERT INTO snapshots (snapshot_id, latest_mst, article_count, content_hash) VALUES (%s, %s, %s, %s)"
+        "INSERT INTO snapshots (snapshot_id, latest_mst, article_count, content_hash, created_at)"
+        " VALUES (%s, %s, %s, %s, clock_timestamp())"  # 17장: 한 트랜잭션 안에서도 나중 것이 최신이 되게
         " ON CONFLICT (snapshot_id) DO NOTHING",  # 같은 초에 같은 내용이면 같은 스냅샷
         (snap_id, Jsonb(latest), count, digest),
     )

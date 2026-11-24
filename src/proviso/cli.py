@@ -66,6 +66,38 @@ def _collect(args: argparse.Namespace) -> int:
     return 0 if "failed" not in state.summary() else 1
 
 
+def _sync(args: argparse.Namespace) -> int:
+    import os
+    from datetime import date
+
+    from dotenv import load_dotenv
+
+    from proviso.collect.law_api import LawApiAuthError, LawApiClient
+    from proviso.collect.laws import collect_versions
+    from proviso.config import ROOT
+    from proviso.db.connect import apply_schema, connect
+    from proviso.sync import SYNC_INDEXES, sync, write_report
+
+    load_dotenv(ROOT / ".env")
+    raw_dir, state = _paths()
+    client = LawApiClient(os.environ.get("LAW_OC", ""))
+    try:  # 목록은 새로 받고, 아직 없는 본문만 받는다
+        live = collect_versions(load_sources(), client, raw_dir, state, scope="all")
+    except LawApiAuthError as e:
+        print(f"중단(인증/IP 오류): {e}")
+        return 2
+    finally:
+        client.close()
+    with connect() as conn:
+        apply_schema(conn)
+        res = sync(conn, load_sources(), raw_dir, live, today=date.fromisoformat(args.today) if args.today else date.today(),
+                   indexes=[] if args.no_index else SYNC_INDEXES)
+    path = write_report(res)
+    print(open(path, encoding="utf-8").read())
+    print(f"보고서: {path}")
+    return 0
+
+
 def _load(args: argparse.Namespace) -> int:
     from proviso.db.connect import apply_schema, connect
     from proviso.db.load import load_versions
@@ -423,6 +455,11 @@ def main(argv: list[str] | None = None) -> int:
     tc = sub.add_parser("trace", help="기록 하나를 단계별 표로 본다")
     tc.add_argument("trace_id", help="앞 몇 글자만 줘도 된다")
     tc.set_defaults(func=_trace_show)
+
+    sy = sub.add_parser("sync", help="바뀐 법령만 받아 넣고 바뀐 조각만 임베딩해 색인을 새로 만든다(17장)")
+    sy.add_argument("--today", help="현행 기준일(기본: 오늘)")
+    sy.add_argument("--no-index", action="store_true", help="색인은 새로 만들지 않는다")
+    sy.set_defaults(func=_sync)
 
     sv = sub.add_parser("serve", help="모델을 한 번 불러 두고 HTTP로 질문을 받는다(16장). pip install -e '.[serve]'")
     sv.add_argument("--host", default="127.0.0.1")

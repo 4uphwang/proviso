@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS index_versions (
   build_seconds numeric,
   created_at   timestamptz NOT NULL DEFAULT now()
 );
+-- 17장: 새로 임베딩한 조각 수(나머지는 이전 색인에서 재사용). 전부 새로 만들면 chunk_count와 같다
+ALTER TABLE index_versions ADD COLUMN IF NOT EXISTS embedded integer;
 
 -- 색인 조각. 고정 길이 청킹은 조 경계를 무시하므로 조각 하나가 조문 여러 개에 걸친다(articles).
 -- embedding은 차원을 고정하지 않는다(모델마다 다름). 조문 수천 개 규모라 정확 검색(전수 비교)으로 충분하다.

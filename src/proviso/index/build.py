@@ -84,7 +84,15 @@ def latest_index(conn, name: str) -> str | None:
     return row[0] if row else None
 
 
-def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedder=None, log=print) -> str:
+def index_vectors(conn, index_id: str) -> dict[str, str]:
+    """조각 글 → 임베딩(pgvector 글 형식). 17장: 새 색인을 만들 때 글이 같은 조각은 다시 임베딩하지 않는다."""
+    return dict(conn.execute("SELECT text, embedding::text FROM index_chunks WHERE index_id = %s", (index_id,)).fetchall())
+
+
+def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedder=None, log=print,
+                reuse: dict[str, str] | None = None) -> str:
+    """reuse(17장): {조각 글: 임베딩}. 글이 같은 조각은 그 임베딩을 그대로 쓰고, 나머지만 임베딩한다.
+    같은 모델·청킹 설정의 이전 색인에서 가져와야 한다(index_vectors). 결과는 전부 새로 만든 것과 같다."""
     from proviso.eval.run import latest_snapshot
     from proviso.index.embed import Embedder
 
@@ -121,18 +129,23 @@ def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedde
         else:
             cs = article_chunks(arts, tokenize, size=ch["size"], header=ch.get("header", False))
         chunks += [{"doc_id": doc, **c} for c in cs]
-    log(f"조각 {len(chunks)}개, 임베딩 중({embedder.model_name})")
-    vecs = embedder.encode([c["text"] for c in chunks])
+    reuse = reuse or {}
+    todo = [c["text"] for c in chunks if c["text"] not in reuse]
+    log(f"조각 {len(chunks)}개 중 {len(todo)}개 임베딩({embedder.model_name}), {len(chunks) - len(todo)}개는 이전 색인에서 재사용")
+    fresh = dict(zip(todo, (_vec(v) for v in embedder.encode(todo)))) if todo else {}
+    vecs = [reuse.get(c["text"]) or fresh[c["text"]] for c in chunks]
+    embedded = len(todo)
     with conn.transaction():
         conn.execute(
-            "INSERT INTO index_versions (index_id, name, method, snapshot_id, as_of, chunk_count, build_seconds)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (index_id, cfg["name"], json.dumps(method), snapshot, as_of, len(chunks), round(time.perf_counter() - t0, 1)))
+            "INSERT INTO index_versions (index_id, name, method, snapshot_id, as_of, chunk_count, build_seconds, embedded,"
+            " created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, clock_timestamp())",
+            (index_id, cfg["name"], json.dumps(method), snapshot, as_of, len(chunks), round(time.perf_counter() - t0, 1),
+             embedded))
         with conn.cursor() as cur:
             cur.executemany(
                 "INSERT INTO index_chunks (index_id, chunk_no, doc_id, text, articles, embedding)"
                 " VALUES (%s, %s, %s, %s, %s, %s::vector)",
-                [(index_id, i, c["doc_id"], c["text"], json.dumps(c["articles"], ensure_ascii=False), _vec(v))
+                [(index_id, i, c["doc_id"], c["text"], json.dumps(c["articles"], ensure_ascii=False), v)
                  for i, (c, v) in enumerate(zip(chunks, vecs))])
     log(f"완료: {index_id} ({round(time.perf_counter() - t0, 1)}초)")
     return index_id
