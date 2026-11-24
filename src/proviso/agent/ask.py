@@ -4,6 +4,11 @@
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+
 from proviso.agent.loop import chat_client, run_agent
 from proviso.agent.resilience import FallbackChat, LLMError
 from proviso.agent.run import DEFAULT_MODEL, TODAY, Retriever, as_of_setup, year_notice
@@ -47,35 +52,79 @@ def chain(model: str, fallbacks: list[str] | None = None) -> FallbackChat:
     return FallbackChat(clients)
 
 
+@dataclass
+class Answer:
+    text: str                  # 사용자에게 보일 글(인용 확인 표시와 고지 포함)
+    trace_id: str = ""
+    refused: bool = False
+    kind: str = "answer"       # answer | guard | unavailable
+    cites: list[dict] = field(default_factory=list)
+    model: str = ""            # 실제로 답한 모델(대체가 답했으면 그 모델)
+    fallback_from: str = ""
+    seconds: float = 0.0       # 질문을 받아 답을 돌려줄 때까지(벽시계)
+
+
+class Asker:
+    """질문에 답하는 데 필요한 것(법령, 법령 이름, 검색기, 기준일별 법령)을 한 번만 불러 두고 질문마다 쓴다(16장).
+
+    CLI(proviso agent ask)는 질문 하나에 하나를 만들고 버린다. 서버(proviso serve)는 하나를 띄워 두고 계속 쓴다.
+    검색·재정렬 모델은 첫 검색 때 올라온다. warm()을 부르면 미리 올린다.
+    """
+
+    def __init__(self, conn, *, retriever_cfg: dict, model: str | None = None,
+                 search_cache: Path | None = ROOT / "data" / "cache" / "ask_search.json"):
+        from proviso.retrieve.versions import TextHistory, period_starts
+
+        self.conn, self.retriever_cfg, self.model = conn, retriever_cfg, pick_model(model)
+        self.law, self.names = load_law(conn, TODAY), law_names(conn)
+        self.retr = Retriever(conn, retriever_cfg, search_cache)
+        self.known = {(d, a) for d, a, _ in period_starts(conn)}
+        self.hist = TextHistory(conn)
+        self.laws_at: dict = {}
+
+    def warm(self) -> float:
+        """검색·재정렬 모델을 올리고 걸린 초를 돌려준다."""
+        t0 = time.perf_counter()
+        self.retr.r.search("금융", k=1)
+        return time.perf_counter() - t0
+
+    def answer(self, question: str, *, model: str | None = None, seed_search: bool = True,
+               on_step: Callable[[dict], None] | None = None) -> Answer:
+        from proviso.answer.guard import REFUSAL, leaked, screen
+        from proviso.answer.pii import mask
+
+        t0 = time.perf_counter()
+        model = pick_model(model or self.model)
+        question, _ = mask(question)  # 11장: 개인정보는 모델과 기록에 넘기기 전에 가린다(원문은 저장하지 않는다)
+        kind = screen(question, attacks=True, names=self.names, known=self.known)  # 10·11장: 모델 전에 거른다
+        if kind:
+            return Answer(present(REFUSAL[kind], []), refused=True, kind="guard", seconds=time.perf_counter() - t0)
+        when, law_at, box, system = as_of_setup(self.conn, question, self.names, self.retr, self.laws_at)
+        llm = chain(model)
+        try:
+            tr = run_agent(question, llm, box or Toolbox(self.law, self.names, self.retr.search), system=system,
+                           seed_search=seed_search, on_step=on_step)
+        except LLMError:
+            return Answer(UNAVAILABLE, kind="unavailable", seconds=time.perf_counter() - t0)
+        if leaked(tr.answer):  # 11장: 시스템 지시문이 답에 나오면 거절로 바꾼다
+            tr.answer = REFUSAL["injection"]
+        law = self.law
+        r = judge(tr.answer, set(tr.shown), set(law.articles) | set((law_at or law).articles), tr.context, self.names)
+        tid = save(self.conn, tr, question=question, answer=tr.answer, refused=r["refused"],
+                   config={"model": model, "fallbacks": [c.model for c in llm.clients[1:]], "llm_events": llm.events,
+                           "seed_search": seed_search, "retriever": self.retriever_cfg,
+                           "as_of": str(when) if when else None}, snapshot_id=latest_snapshot(self.conn))
+        note = year_notice(question, when, r["cites"], law_at or law, self.hist)
+        text = present(tr.answer, r["cites"])
+        if note:
+            text = text.replace("\n\n※ 이 답변은", f"\n\n{note}\n\n※ 이 답변은", 1)
+        used = [s for s in tr.steps if s.get("llm")]
+        last = used[-1] if used else {}
+        return Answer(text, tid, r["refused"], "answer", r["cites"], last.get("model") or llm.clients[0].model,
+                      last.get("fallback_from", ""), time.perf_counter() - t0)
+
+
 def ask(conn, question: str, *, retriever_cfg: dict, model: str | None = None, seed_search: bool = True) -> tuple[str, str]:
-    """(사용자에게 보일 글, trace_id). 검색 캐시는 평가용과 나눈다."""
-    model = pick_model(model)
-    law, names = load_law(conn, TODAY), law_names(conn)
-    retr = Retriever(conn, retriever_cfg, ROOT / "data" / "cache" / "ask_search.json")
-    from proviso.answer.guard import REFUSAL, leaked, screen
-    from proviso.answer.pii import mask
-    from proviso.retrieve.versions import period_starts
-
-    question, _ = mask(question)  # 11장: 개인정보는 모델과 기록에 넘기기 전에 가린다(원문은 저장하지 않는다)
-    known = {(d, a) for d, a, _ in period_starts(conn)}
-    kind = screen(question, attacks=True, names=names, known=known)  # 10·11장: 모델 전에 거른다
-    if kind:
-        return present(REFUSAL[kind], []), ""
-    when, law_at, box, system = as_of_setup(conn, question, names, retr, {})
-    llm = chain(model)
-    try:
-        tr = run_agent(question, llm, box or Toolbox(law, names, retr.search), system=system, seed_search=seed_search)
-    except LLMError:
-        return UNAVAILABLE, ""
-    if leaked(tr.answer):  # 11장: 시스템 지시문이 답에 나오면 거절로 바꾼다
-        tr.answer = REFUSAL["injection"]
-    r = judge(tr.answer, set(tr.shown), set(law.articles) | set((law_at or law).articles), tr.context, names)
-    tid = save(conn, tr, question=question, answer=tr.answer, refused=r["refused"],
-               config={"model": model, "fallbacks": [c.model for c in llm.clients[1:]], "llm_events": llm.events,
-                       "seed_search": seed_search, "retriever": retriever_cfg,
-                       "as_of": str(when) if when else None}, snapshot_id=latest_snapshot(conn))
-    from proviso.retrieve.versions import TextHistory
-
-    note = year_notice(question, when, r["cites"], law_at or law, TextHistory(conn))
-    text = present(tr.answer, r["cites"])
-    return (text.replace("\n\n※ 이 답변은", f"\n\n{note}\n\n※ 이 답변은", 1) if note else text), tid
+    """(사용자에게 보일 글, trace_id). CLI용: 질문 하나에 Asker 하나(모델을 매번 새로 불러온다)."""
+    a = Asker(conn, retriever_cfg=retriever_cfg, model=model).answer(question, seed_search=seed_search)
+    return a.text, a.trace_id

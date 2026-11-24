@@ -62,6 +62,8 @@ DeepSeek V4 Flash는 질문당 약 $0.001로 세 지표 모두 4b보다 높았�
 
 [15장](docs/chapters/15-otel.md)에서는 기록을 OpenTelemetry(생성형 AI 규약)로 내보내 로컬 Phoenix에서 봤습니다(`proviso otel`). 기록 4개를 한 화면에 놓고 보니 `ask` 지연 약 90초 중 70~84초가 첫 검색이었습니다. 질문마다 검색·재정렬 모델을 새로 불러오는 비용으로 보이고, 고치려면 모델을 띄워 두는 서버가 필요합니다.
 
+[16장](docs/chapters/16-serve.md)에서 그 서버를 만들었습니다(`proviso serve`, FastAPI: `/ask`, `/ask/stream`, `/health`, `/trace/{id}`). 시작할 때 모델을 올리는 데 63.4초가 걸렸고, 같은 10문항의 준비 + 검색 시간이 CLI 67.2초 → 서버 6.0초(중앙값)가 됐습니다. 모델을 실제로 부르는 새 질문은 서버에서 15~34초입니다.
+
 ## 실행
 ```bash
 python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"

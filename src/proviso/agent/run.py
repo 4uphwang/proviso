@@ -54,9 +54,10 @@ SHORT_CHARS = 1000  # 검색 도구가 조문 하나에 보여 주는 길이와 
 class Retriever:
     """R1을 필요할 때만 올리고, 검색 결과를 파일에 저장한다(같은 질의는 다시 검색하지 않는다)."""
 
-    def __init__(self, conn, cfg: dict, path: Path):
+    def __init__(self, conn, cfg: dict, path: Path | None):
+        """path가 None이면 파일에 저장하지 않고 이 프로세스 안에서만 기억한다(16장: 서버 지연을 잴 때)."""
         self._conn, self._cfg, self._path, self._r = conn, cfg, path, None
-        self._cache = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        self._cache = json.loads(path.read_text(encoding="utf-8")) if path and path.exists() else {}
 
     @property
     def r(self):
@@ -82,6 +83,8 @@ class Retriever:
 
     def _save(self, key: str, value):
         self._cache[key] = value
+        if self._path is None:
+            return value
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(json.dumps(self._cache, ensure_ascii=False), encoding="utf-8")
         return value

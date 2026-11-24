@@ -287,6 +287,15 @@ def _agent_faith(args: argparse.Namespace) -> int:
     return 0
 
 
+def _serve(args: argparse.Namespace) -> int:
+    import uvicorn
+
+    from proviso.serve import default_app
+
+    uvicorn.run(default_app(args.retriever_config, args.model), host=args.host, port=args.port)
+    return 0
+
+
 def _otel(args: argparse.Namespace) -> int:
     from proviso.trace.otel import export_records, load_records, otlp_exporter
 
@@ -414,6 +423,13 @@ def main(argv: list[str] | None = None) -> int:
     tc = sub.add_parser("trace", help="기록 하나를 단계별 표로 본다")
     tc.add_argument("trace_id", help="앞 몇 글자만 줘도 된다")
     tc.set_defaults(func=_trace_show)
+
+    sv = sub.add_parser("serve", help="모델을 한 번 불러 두고 HTTP로 질문을 받는다(16장). pip install -e '.[serve]'")
+    sv.add_argument("--host", default="127.0.0.1")
+    sv.add_argument("--port", type=int, default=8000)
+    sv.add_argument("--model", help="기본: agent ask와 같다(DeepSeek V4 Flash, 키가 없으면 4b)")
+    sv.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
+    sv.set_defaults(func=_serve)
 
     ot = sub.add_parser("otel", help="기록을 OpenTelemetry(OTLP)로 내보낸다(15장). pip install -e '.[otel]'")
     ot.add_argument("trace_ids", nargs="*", help="기록 id(앞 몇 글자). 없으면 --day의 기록 전부, 그것도 없으면 전부")
