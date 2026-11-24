@@ -1,0 +1,30 @@
+{
+ "label_id": "t01",
+ "claims": [
+  {
+   "claim": "1998년 7월 1일 시행 조문 기준이라는 적용 시점",
+   "verdict": "contradicted",
+   "source": 1,
+   "note": "자료의 시행일은 1998-04-01이며 7월 1일 시행본이 아님"
+  },
+  {
+   "claim": "처리결과를 7일 이내에 정보주체에게 통지(제25조제4항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "이의 시 통지받은 날부터 15일 이내 금융감독위원회에 시정요청(시행령 제14조)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "통지가 없으면 정정청구 후 7일 경과한 날부터 기산",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": true
+}

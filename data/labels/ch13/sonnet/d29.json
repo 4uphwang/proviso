@@ -1,0 +1,42 @@
+{
+ "label_id": "d29",
+ "claims": [
+  {
+   "claim": "무한책임사원은 1인 이상 최대 2인까지 가능",
+   "verdict": "contradicted",
+   "source": 1,
+   "note": "제214조제1항은 업무집행사원 1인 외 무한책임사원을 둘 수 없다고 함"
+  },
+  {
+   "claim": "유한책임사원은 1인 이상 최대 2인까지 가능",
+   "verdict": "unsupported",
+   "source": null,
+   "note": "자료에 유한책임사원 인원 상한 규정 없음"
+  },
+  {
+   "claim": "업무집행사원은 집합투자업자여야 함(상법 제173조에도 불구)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제214조제1항 인용문",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "정관에 무한책임사원 1인과 유한책임사원 1인이 기명날인 또는 서명(제213조제1항)",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  },
+  {
+   "claim": "업무집행사원은 법인이사와 동일한 법적 지위(제214조제2항)",
+   "verdict": "unsupported",
+   "source": 1,
+   "note": "제198조 일부 항만 준용하며 자료에 198조 내용 없어 동일한 지위라는 일반화는 근거 부족"
+  }
+ ],
+ "unfaithful": true
+}

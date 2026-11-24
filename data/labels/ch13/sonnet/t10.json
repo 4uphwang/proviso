@@ -1,0 +1,84 @@
+{
+ "label_id": "t10",
+ "claims": [
+  {
+   "claim": "2022.7.1 시행 조문 기준(자료는 시행 2022-06-29)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "창업기업(중소기업창업 지원법 제2조제3호), 제5조제1항 단서 업종 중소기업이면 제외",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "벤처기업(제2조제1항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "기술혁신형(제15조)·경영혁신형(제15조의3) 중소기업",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "신기술사업자(기술보증기금법 제2조제1호)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "소재·부품·장비 전문기업으로서 중소기업",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "그 밖에 성장기반 조성 필요 중소기업으로서 대통령령으로 정하는 기업(제6호)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제271조의28제1항: 대통령령으로 정하는 기업은 사회적기업(사회적기업 육성법 제2조제1호)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "사원이 출자한 날부터 2년 이내(시행령 제271조의28제2항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "출자금액의 100분의 50 이상(시행령 제3항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "운용방법: 창업·벤처기업등 발행 증권 투자, 투자목적회사 지분증권 투자, 대통령령 정하는 그 밖의 방법(법 제2항 각 호)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제4항 예시: 채권·담보권 매매, 회계 독립 사업 투자, 지식재산권 매입",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "남은 재산은 투자대상 창업·벤처기업등에 대한 금전 대여 등으로 운용 가능(시행령 제5항제6호)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

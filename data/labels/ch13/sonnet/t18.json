@@ -1,0 +1,30 @@
+{
+ "label_id": "t18",
+ "claims": [
+  {
+   "claim": "제35조제1항: 허가받은 전자금융업자는 각 호 업무 외 업무를 겸영하지 못한다(각 호 내용 포함)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제35조제2항: 전자화폐 미상환잔액 전부에 대해 지급보증 또는 상환보증보험에 가입하면 그 외 업무를 할 수 있다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제22조제2항의 대통령령이 정하는 금융회사 5개 호 목록",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "미상환잔액 전부에 대한 지급보증·상환보증보험 가입 시에만 겸업이 허용되는 예외다",
+   "verdict": "supported",
+   "source": 1,
+   "note": "제35조제2항 예외 요약"
+  }
+ ],
+ "unfaithful": false
+}

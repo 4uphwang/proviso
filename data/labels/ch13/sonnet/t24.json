@@ -1,0 +1,48 @@
+{
+ "label_id": "t24",
+ "claims": [
+  {
+   "claim": "2001년 7월 1일 시행 조문 기준",
+   "verdict": "supported",
+   "source": null,
+   "note": "자료 시행일 2001-06-29/30로 그 날 유효한 버전과 모순 없음"
+  },
+  {
+   "claim": "법 제23조: 신용정보제공·이용자가 개인신용정보를 신용정보업자등에 제공하려면 대통령령에 따라 서면 동의 필요",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "동의 대상: 금융거래 내용 정보·자료, 개인 질병 정보, 기타 대통령령이 정하는 개인신용정보",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제12조제1항: 금융감독위원회가 정하는 바에 따라 제공할 신용정보의 내용, 제공대상자 등을 명기한 동의서",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제12조제2항: 기타 개인신용정보는 제2조제1항제2호 및 제4호 정보 중 개인에 관한 정보",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제12조에 2000.6.7, 1998.7.9 개정이 반영됨",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제12조에 1997년 개정이 반영됨",
+   "verdict": "unsupported",
+   "source": null,
+   "note": "자료에는 1998.7.9, 2000.6.7 개정만 표시되고 시행령 1997년 개정은 없음(1997.12.31은 법 제23조)"
+  }
+ ],
+ "unfaithful": true
+}

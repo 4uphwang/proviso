@@ -1,0 +1,36 @@
+{
+ "label_id": "t08",
+ "claims": [
+  {
+   "claim": "판매회사가 환매청구에 응할 수 없는 경우의 사유는 법 제235조제2항 단서가 규정한다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "투자자는 집합투자증권을 판매한 투자매매업자·투자중개업자에게 환매를 청구해야 한다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "판매회사가 해산·인가취소·업무정지 등으로 응할 수 없으면 집합투자업자에게 직접 청구할 수 있다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제253조: 천재지변 등으로 인한 전산장애 등으로 판매회사가 정상 업무가 곤란하다고 금융위원회가 인정한 경우",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  },
+  {
+   "claim": "결론: 해산, 인가취소, 업무정지, 금융위 인정 전산장애 등이 환매청구에 응할 수 없는 경우",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

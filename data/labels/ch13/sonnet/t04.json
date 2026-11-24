@@ -1,0 +1,36 @@
+{
+ "label_id": "t04",
+ "claims": [
+  {
+   "claim": "증권금융회사 인가 최저 자기자본은 500억원",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "법 제324조제2항제2호는 20억원 이상으로서 대통령령 금액 이상의 자기자본을 요구",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "대통령령 금액은 500억원(시행령 제319조제1항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "인가 후 영업 중에는 최저자기자본의 100분의 70 이상 유지하면 됨(제319조제2항제1호)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "100분의 70은 350억원",
+   "verdict": "supported",
+   "source": 1,
+   "note": "산술 결과"
+  }
+ ],
+ "unfaithful": false
+}

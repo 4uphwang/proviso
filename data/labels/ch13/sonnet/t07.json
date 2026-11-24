@@ -1,0 +1,18 @@
+{
+ "label_id": "t07",
+ "claims": [
+  {
+   "claim": "실질주주는 주주 권리 행사에서 제312조제1항 공유지분 상당 주식을 가진 것으로 본다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "실질주주는 회사의 주주에 대한 통지 및 주주명부 열람·등사 청구에 대해 권리를 행사할 수 있다(제315조제2항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

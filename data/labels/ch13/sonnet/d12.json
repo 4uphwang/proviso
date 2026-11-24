@@ -1,0 +1,30 @@
+{
+ "label_id": "d12",
+ "claims": [
+  {
+   "claim": "결제업무규정을 변경하려면 금융위원회의 승인을 받아야 한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "자본시장법 제305조제1항은 예탁결제원이 결제업무규정 제정·변경·폐지 시 금융위 승인을 받도록 한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제303조제1항은 결제업무규정이 청산업무규정, 회원관리규정, 업무규정과 상충되어서는 안 된다고 한다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "변경 전 다른 규정과 상충 여부를 확인한 뒤 승인을 신청해야 한다",
+   "verdict": "supported",
+   "source": "1,2",
+   "note": "제303조제1항과 제305조제1항에서 도출되는 결론"
+  }
+ ],
+ "unfaithful": false
+}

@@ -1,0 +1,48 @@
+{
+ "label_id": "t22",
+ "claims": [
+  {
+   "claim": "법 제94조제2항이 부동산개발사업 법인에 대한 금전 대여를 허용",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "대여 상대방: 부동산개발사업 법인(부동산신탁업자 포함), 부동산투자회사, 다른 집합투자기구",
+   "verdict": "supported",
+   "source": 1,
+   "note": "시행령 제97조제2항 및 법 제94조제2항"
+  },
+  {
+   "claim": "요건: 집합투자규약에서 금전의 대여에 관한 사항을 정할 것",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "요건: 부동산 담보권 설정이나 시공사 등 지급보증 등 회수 수단 확보",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "대여금 한도는 자산총액에서 부채총액을 뺀 가액의 100분의 100",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "부동산개발사업 투자 시 사업계획서 작성, 감정평가법인등 적정성 확인, 공시(법 제94조제4항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "금전의 대여는 수시공시 대상(시행령 제93조제3항제6호라목)",
+   "verdict": "supported",
+   "source": 5,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

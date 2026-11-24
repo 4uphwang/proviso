@@ -1,0 +1,42 @@
+{
+ "label_id": "d02",
+ "claims": [
+  {
+   "claim": "2000-07-01 시행 조문 기준으로 답함",
+   "verdict": "supported",
+   "source": 1,
+   "note": "자료 시행일 2000-06-07, 2000-04-22로 그 시점 유효본과 부합"
+  },
+  {
+   "claim": "제출 기한: 통지받은 날(통지 없으면 정정청구 후 7일 경과한 날)부터 15일 이내",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제출처는 금융감독위원회",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "첨부서류: 정정청구 서면, 처리결과 통지내용(있는 경우), 사실여부 확인 서류",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "근거 법 조항은 법 제25조제4항 후단",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제14조는 1999.4.30 개정 이후 시행 중인 조문",
+   "verdict": "supported",
+   "source": 1,
+   "note": "개정이력 표기 <1999.4.30>가 마지막"
+  }
+ ],
+ "unfaithful": false
+}

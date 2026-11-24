@@ -1,0 +1,48 @@
+{
+ "label_id": "d19",
+ "claims": [
+  {
+   "claim": "신용정보법 제45조의3제1항에 따라 보호위원회가 상거래기업 및 법인에 자료제출을 요구할 수 있다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제1호: 제15조·제17조, 제19조·제20조의2, 제32조 등 열거 규정 위반 발견 또는 혐의 인지",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제2호: 상거래정보보호규정 위반 신고·민원 접수",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제3호: 그 밖에 개인신용정보 보호를 위해 대통령령으로 정하는 경우",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제36조의6제1항: 개인신용정보 누설 등 권리·이익 침해 사건·사고가 발생했거나 발생 가능성이 높은 경우",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "자료 미제출 또는 위반 인정 시 소속 공무원이 사무소·사업장 출입 조사 가능, 증표 제시",
+   "verdict": "supported",
+   "source": 1,
+   "note": "제45조의3제2항"
+  },
+  {
+   "claim": "제출받은 자료는 이 법에 따른 경우 외 제3자 제공·공개 금지",
+   "verdict": "supported",
+   "source": 1,
+   "note": "제45조의3제3항"
+  }
+ ],
+ "unfaithful": false
+}

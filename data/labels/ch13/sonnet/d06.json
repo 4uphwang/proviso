@@ -1,0 +1,42 @@
+{
+ "label_id": "d06",
+ "claims": [
+  {
+   "claim": "보고 불이행 또는 중요사항 거짓·누락 시 대통령령 기간 동안 5% 초과분 중 위반분 의결권 행사 불가",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "고의·중과실 미보고 또는 거짓·누락: 매수등을 한 날부터 보고(정정 포함) 후 6개월이 되는 날까지(시행령 제158조제1호)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "착오로 보고가 늦어진 경우: 매수등을 한 날부터 보고한 날까지(제158조제2호)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "착오 사유: 이미 다른 법령에 따라 신고되었거나 정부 승인·지도·권고에 따른 취득·처분",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "금융위는 6개월 이내 기간을 정해 위반분 처분 명령 가능(제150조제1항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "경영권 영향 목적 보고자가 보고사유 발생일~보고 후 5일까지 추가 취득한 분은 의결권 행사 불가, 금융위가 6개월 이내 처분명령 가능(제150조제2·3항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

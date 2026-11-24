@@ -1,0 +1,36 @@
+{
+ "label_id": "d03",
+ "claims": [
+  {
+   "claim": "법 제45조의3제1항 제1호: 상거래정보보호규정 위반 사항 발견 또는 혐의 인지",
+   "verdict": "supported",
+   "source": 2,
+   "note": "조문 번호 나열도 일치"
+  },
+  {
+   "claim": "제2호: 위반 신고를 받거나 민원 접수",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "제3호: 개인신용정보 보호를 위해 필요한 경우로서 대통령령이 정하는 경우",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제36조의6제1항: 개인신용정보 누설 등 권리·이익 침해 사건·사고가 발생했거나 발생 가능성이 높은 경우",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "그 경우 보호위원회가 자료제출을 요구하고 필요시 사무소·사업장 출입 조사 가능(제45조의3제2항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": "출입조사는 자료 미제출 또는 위반 인정 시라는 조건이 있으나 요지는 부합"
+  }
+ ],
+ "unfaithful": false
+}

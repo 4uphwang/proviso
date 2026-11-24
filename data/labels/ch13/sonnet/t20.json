@@ -1,0 +1,42 @@
+{
+ "label_id": "t20",
+ "claims": [
+  {
+   "claim": "주민등록법 제7조의2제1항의 주민등록번호가 개인식별번호에 포함됨(시행령 제2조제2항제1호)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "출생·사망·이민·부재 정보와 주민등록번호·성명 변경 정보는 별표 2 신용도판단정보 중 공공기관이 만들어 낸 정보로 집중관리 대상",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제2조제17항제4호가 개인의 주민등록 관련 정보(출생·사망·이민·부재, 번호·성명 변경)를 규정",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "공공기관 제공 요청 신용정보에 사망자 정보, 주민등록번호 및 성명 변경 정보(제19조제2항제4호)",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  },
+  {
+   "claim": "공공기관 제공 요청 신용정보에 국외 이주신고 및 이주포기신고 정보(제5호)",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  },
+  {
+   "claim": "요약: 주민등록번호, 출생·사망·이민·부재 정보, 번호·성명 변경 정보",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

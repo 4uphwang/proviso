@@ -1,0 +1,24 @@
+{
+ "label_id": "t13",
+ "claims": [
+  {
+   "claim": "금소법 과태료 부과기준표는 시행령 별표 4에 있다",
+   "verdict": "supported",
+   "source": 4,
+   "note": "별표 4 과태료의 부과기준(제51조 관련)"
+  },
+  {
+   "claim": "시행령 제51조는 법 제69조제1항~제4항 과태료 부과기준을 별표 4로 정한다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "별표 4에 일반기준(감경·가중)과 개별기준(위반행위별 금액표)이 있다",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

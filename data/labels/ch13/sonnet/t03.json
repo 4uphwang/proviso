@@ -1,0 +1,60 @@
+{
+ "label_id": "t03",
+ "claims": [
+  {
+   "claim": "발행인은 제119조의5에 따라 정보제공 전문투자자 명단 등 자료를 기록·유지·관리",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  },
+  {
+   "claim": "기록은 10년 동안 유지·관리",
+   "verdict": "supported",
+   "source": 2,
+   "note": "시행령 제129조의5"
+  },
+  {
+   "claim": "기록 대상: 전문투자자 명단(일시·주체·방법·정보 포함)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "기록 대상: 비밀유지계약 자료",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "기록 대상: 매입희망 가격·물량 등 수요상황 자료",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "기록 대상: 전문투자자별 청약 수량 등 사전 청약 자료",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "기록 대상: 그 밖에 금융위가 고시하는 자료",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "취득한 주권은 제119조의4제4항에 따라 보호예수해야 함",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "보호예수 기간은 6개월 이상 12개월 이하이며 금융위 고시로 정함",
+   "verdict": "supported",
+   "source": 3,
+   "note": "시행령 제129조의4제6항"
+  }
+ ],
+ "unfaithful": false
+}

@@ -273,6 +273,20 @@ def _agent_attack(args: argparse.Namespace) -> int:
     return 0
 
 
+def _agent_faith(args: argparse.Namespace) -> int:
+    from proviso.db.connect import connect
+    from proviso.eval.faith_run import run_faith, summary
+
+    ids = set(args.ids.split(",")) if args.ids else None
+    with connect() as conn:
+        path = run_faith(conn, Path(args.run), args.judge, ids=ids, max_tokens=args.max_tokens)
+    s = summary(json.loads(path.read_text(encoding="utf-8")))
+    print(f"답 {s['answers']}개(못 읽은 판정 {s['unparsed']}), 충실도 {s['faithfulness'] or 0:.3f}, "
+          f"근거 없는 주장이 있는 답 {s['unfaithful_rate'] or 0:.3f}")
+    print(f"결과: {path}")
+    return 0
+
+
 def _trace_show(args: argparse.Namespace) -> int:
     from proviso.db.connect import connect
     from proviso.trace.store import show
@@ -377,6 +391,13 @@ def main(argv: list[str] | None = None) -> int:
     atk.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
     atk.add_argument("--shield", action="store_true", help="11장 방어(개인정보 가림, 지시 바꾸기·없는 조문 거름, 지시문 유출 검사)")
     atk.set_defaults(func=_agent_attack)
+
+    fa = ag_sub.add_parser("faith", help="답이 본 조문에 근거하는지 판정자 모델로 잰다(13장)")
+    fa.add_argument("run", help="runs/<…>_agent-….json")
+    fa.add_argument("--judge", default="openrouter:deepseek/deepseek-v4-flash-0731")
+    fa.add_argument("--max-tokens", type=int, default=2000)
+    fa.add_argument("--ids", help="이 문항만(쉼표로 여럿)")
+    fa.set_defaults(func=_agent_faith)
 
     tc = sub.add_parser("trace", help="기록 하나를 단계별 표로 본다")
     tc.add_argument("trace_id", help="앞 몇 글자만 줘도 된다")

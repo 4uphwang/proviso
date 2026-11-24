@@ -1,0 +1,24 @@
+{
+ "label_id": "t11",
+ "claims": [
+  {
+   "claim": "조사공무원은 금융위원회 소속 공무원 중 증선위 위원장 제청으로 검찰총장이 지명하는 자",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "법 제427조제1항: 증선위가 조사에 필요하다고 인정하면 금융위 소속공무원 중 대통령령으로 정하는 자에게 심문·압수·수색을 하게 할 수 있다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제378조가 '대통령령으로 정하는 자'를 위와 같이 규정한다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

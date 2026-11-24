@@ -1,0 +1,18 @@
+{
+ "label_id": "t17",
+ "claims": [
+  {
+   "claim": "법 제64조제2항: 금융투자업자가 투자설명서 위반 등으로 배상책임을 지고 관련 임원에게도 귀책사유가 있으면 임원이 연대하여 배상한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "법 제123조제1항: 증권 모집·매출 시 투자설명서는 발행인이 작성하여 금융위에 제출한다",
+   "verdict": "supported",
+   "source": 3,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

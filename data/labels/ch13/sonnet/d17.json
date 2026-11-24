@@ -1,0 +1,36 @@
+{
+ "label_id": "d17",
+ "claims": [
+  {
+   "claim": "인가일부터 6개월 이내 영업을 시작하지 않으면 금융위가 조치 가능, 기준 기간은 6개월",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "금융위는 제359조제1항제8호(대통령령 정하는 경우)에 해당하면 인가를 취소할 수 있음",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "영 제347조제4항제1호: 인가일부터 6개월 이내 영업 미개시 또는 개시 후 정당한 사유 없이 6개월 이상 업무 미수행",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "법 제359조제2항에 따라 6개월 이내 업무정지, 계약인계명령, 시정·중지명령, 공표·게시명령, 기관경고·주의 가능",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "영 제347조제5항: 지점·영업소 폐쇄, 경영·업무방법 개선요구, 변상 요구, 고발 등 그 밖의 조치",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

@@ -1,0 +1,366 @@
+{
+ "dev": [
+  {
+   "label_id": "d01",
+   "id": "a076",
+   "run": "20261123T235018_agent-agent_asof-dev-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "d02",
+   "id": "a019",
+   "run": "20261123T235018_agent-agent_asof-dev-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "d03",
+   "id": "a081",
+   "run": "20261123T235018_agent-agent_asof-dev-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "d04",
+   "id": "a039",
+   "run": "20261123T235006_agent-agent_asof-dev-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "d05",
+   "id": "a071",
+   "run": "20261123T235006_agent-agent_asof-dev-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "d06",
+   "id": "a070",
+   "run": "20261123T235024_agent-agent_asof-dev-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "d07",
+   "id": "a022",
+   "run": "20261123T235024_agent-agent_asof-dev-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "d08",
+   "id": "a046",
+   "run": "20261123T235024_agent-agent_asof-dev-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "d09",
+   "id": "a051",
+   "run": "20261123T235013_agent-agent_asof-dev-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "d10",
+   "id": "a014",
+   "run": "20261123T235024_agent-agent_asof-dev-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "d11",
+   "id": "a010",
+   "run": "20261123T235018_agent-agent_asof-dev-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "d12",
+   "id": "a021",
+   "run": "20261123T235013_agent-agent_asof-dev-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "d13",
+   "id": "a068",
+   "run": "20261123T235006_agent-agent_asof-dev-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "d14",
+   "id": "a076",
+   "run": "20261123T235013_agent-agent_asof-dev-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "d15",
+   "id": "a034",
+   "run": "20261123T235006_agent-agent_asof-dev-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "d16",
+   "id": "a031",
+   "run": "20261123T235013_agent-agent_asof-dev-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "d17",
+   "id": "a050",
+   "run": "20261123T235024_agent-agent_asof-dev-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "d18",
+   "id": "a042",
+   "run": "20261123T235024_agent-agent_asof-dev-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "d19",
+   "id": "a020",
+   "run": "20261123T235013_agent-agent_asof-dev-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "d20",
+   "id": "a006",
+   "run": "20261123T235006_agent-agent_asof-dev-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "d21",
+   "id": "a052",
+   "run": "20261123T235006_agent-agent_asof-dev-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "d22",
+   "id": "a061",
+   "run": "20261123T235024_agent-agent_asof-dev-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "d23",
+   "id": "a056",
+   "run": "20261123T235006_agent-agent_asof-dev-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "d24",
+   "id": "a071",
+   "run": "20261123T235013_agent-agent_asof-dev-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "d25",
+   "id": "a013",
+   "run": "20261123T235018_agent-agent_asof-dev-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "d26",
+   "id": "a009",
+   "run": "20261123T235013_agent-agent_asof-dev-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "d27",
+   "id": "a054",
+   "run": "20261123T235013_agent-agent_asof-dev-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "d28",
+   "id": "a033",
+   "run": "20261123T235018_agent-agent_asof-dev-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "d29",
+   "id": "a054",
+   "run": "20261123T235006_agent-agent_asof-dev-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "d30",
+   "id": "a040",
+   "run": "20261123T235018_agent-agent_asof-dev-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  }
+ ],
+ "test": [
+  {
+   "label_id": "t01",
+   "id": "a115",
+   "run": "20261123T235051_agent-agent_asof-test-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "t02",
+   "id": "a161",
+   "run": "20261123T235555_agent-agent_asof-test-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "t03",
+   "id": "a208",
+   "run": "20261123T235032_agent-agent_asof-test-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "t04",
+   "id": "a096",
+   "run": "20261123T235051_agent-agent_asof-test-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "t05",
+   "id": "a207",
+   "run": "20261123T235042_agent-agent_asof-test-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "t06",
+   "id": "a215",
+   "run": "20261123T235032_agent-agent_asof-test-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "t07",
+   "id": "a185",
+   "run": "20261123T235032_agent-agent_asof-test-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "t08",
+   "id": "a222",
+   "run": "20261123T235555_agent-agent_asof-test-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "t09",
+   "id": "a103",
+   "run": "20261123T235051_agent-agent_asof-test-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "t10",
+   "id": "a103",
+   "run": "20261123T235042_agent-agent_asof-test-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "t11",
+   "id": "a171",
+   "run": "20261123T235042_agent-agent_asof-test-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "t12",
+   "id": "a145",
+   "run": "20261123T235032_agent-agent_asof-test-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "t13",
+   "id": "a145",
+   "run": "20261123T235555_agent-agent_asof-test-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "t14",
+   "id": "a151",
+   "run": "20261123T235042_agent-agent_asof-test-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "t15",
+   "id": "a215",
+   "run": "20261123T235042_agent-agent_asof-test-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "t16",
+   "id": "a199",
+   "run": "20261123T235555_agent-agent_asof-test-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "t17",
+   "id": "a156",
+   "run": "20261123T235032_agent-agent_asof-test-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "t18",
+   "id": "a134",
+   "run": "20261123T235042_agent-agent_asof-test-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "t19",
+   "id": "a143",
+   "run": "20261123T235042_agent-agent_asof-test-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "t20",
+   "id": "a209",
+   "run": "20261123T235555_agent-agent_asof-test-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "t21",
+   "id": "a165",
+   "run": "20261123T235051_agent-agent_asof-test-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "t22",
+   "id": "a205",
+   "run": "20261123T235051_agent-agent_asof-test-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "t23",
+   "id": "a171",
+   "run": "20261123T235051_agent-agent_asof-test-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "t24",
+   "id": "a114",
+   "run": "20261123T235042_agent-agent_asof-test-openrouter_upstage_solar_mini4-o1500-g",
+   "model": "openrouter:upstage/solar-mini4"
+  },
+  {
+   "label_id": "t25",
+   "id": "a196",
+   "run": "20261123T235555_agent-agent_asof-test-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "t26",
+   "id": "a087",
+   "run": "20261123T235032_agent-agent_asof-test-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "t27",
+   "id": "a179",
+   "run": "20261123T235032_agent-agent_asof-test-g",
+   "model": "qwen3.5:4b"
+  },
+  {
+   "label_id": "t28",
+   "id": "a160",
+   "run": "20261123T235051_agent-agent_asof-test-openrouter_z_ai_glm_5.3_flash_low-o1500-g",
+   "model": "openrouter:z-ai/glm-5.3-flash@low"
+  },
+  {
+   "label_id": "t29",
+   "id": "a131",
+   "run": "20261123T235555_agent-agent_asof-test-openrouter_deepseek_deepseek_v4_flash_0731-o1500-g",
+   "model": "openrouter:deepseek/deepseek-v4-flash-0731"
+  },
+  {
+   "label_id": "t30",
+   "id": "a190",
+   "run": "20261123T235032_agent-agent_asof-test-g",
+   "model": "qwen3.5:4b"
+  }
+ ]
+}

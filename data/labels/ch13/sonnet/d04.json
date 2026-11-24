@@ -1,0 +1,42 @@
+{
+ "label_id": "d04",
+ "claims": [
+  {
+   "claim": "주식 시가가 '배당할 이익액'에 미치지 못하면 일반 배당 규정을 따름(첫 문장)",
+   "verdict": "contradicted",
+   "source": 1,
+   "note": "자료는 시가가 '액면액'에 미치지 못하는 경우임"
+  },
+  {
+   "claim": "주권상장법인은 이익배당총액까지 신주로 이익배당 가능, 시가가 액면액 미달이면 상법에 따름",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시가는 주총 직전일부터 사업연도 개시일까지 최종시세 평균과 직전일 시세 중 낮은 가액",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "제165조의13 위반 또는 시가 잘못 산정 시 금융위가 이유 제시 후 정정 명령 가능",
+   "verdict": "supported",
+   "source": 3,
+   "note": ""
+  },
+  {
+   "claim": "임원 해임 권고, 일정 기간 증권 발행 제한 등 대통령령 정하는 조치 가능",
+   "verdict": "supported",
+   "source": 3,
+   "note": ""
+  },
+  {
+   "claim": "근거 조문 제165조의13, 시행령 제176조의14, 제165조의18",
+   "verdict": "supported",
+   "source": null,
+   "note": ""
+  }
+ ],
+ "unfaithful": true
+}

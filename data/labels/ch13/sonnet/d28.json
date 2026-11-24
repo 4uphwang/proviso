@@ -1,0 +1,42 @@
+{
+ "label_id": "d28",
+ "claims": [
+  {
+   "claim": "2022년 7월 1일 시행 조문 기준",
+   "verdict": "contradicted",
+   "source": 1,
+   "note": "자료의 시행일은 2022-06-29"
+  },
+  {
+   "claim": "기한 내 미이행 시 다시 기한을 정해 처분 명하고 불이행 시 이행강제금 부과",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "이행강제금은 취득가액의 100분의 5 초과하지 않는 범위",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "처분명령일 기준 1년 2회 이내, 이행될 때까지 반복 부과(제4항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "부과 전 문서로 미리 통지(제2항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "이행하면 새 부과 중단, 이미 부과분은 징수(제5항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": true
+}

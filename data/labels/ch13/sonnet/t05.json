@@ -1,0 +1,42 @@
+{
+ "label_id": "t05",
+ "claims": [
+  {
+   "claim": "개인신용평가업·신용조사업·채권추심업 허가 대상 6종(법 제5조제1항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "개인사업자신용평가업 허가 대상 5종(법 제5조제2항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "기업신용조회업 허가 대상 4종(법 제5조제3항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제5조제3항 법인: 특허법인, 회계법인, 발명 등의 평가기관, 기술평가기관",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "회계법인 외 특허법인·발명 등 평가기관·기술평가기관이 해당",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "기업신용등급제공업무·기술신용평가업무는 제1호·제2호·제4호의 자로 한정",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

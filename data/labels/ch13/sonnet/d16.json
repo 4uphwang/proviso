@@ -1,0 +1,42 @@
+{
+ "label_id": "d16",
+ "claims": [
+  {
+   "claim": "시행령 제2조제9항이 법인을 사실상 지배하는 자를 규정",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제1호: 국세기본법 제39조제2호 과점주주 중 최다출자자로서 경영에 참여해 사실상 지배하는 자",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제2호: 과점주주이면서 이사·감사로 법인 채무에 연대보증하고 경영참여·사실상 지배하는 자",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제3호: 의결권 있는 발행주식총수 또는 지분총액의 100분의 30 이상 소유하고 경영참여·사실상 지배하는 자",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제4호: 무한책임사원으로서 경영참여·사실상 지배하는 자",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "모든 호에 경영참여와 사실상 지배가 공통 조건이고 호별로 지위·지분·연대보증 요건이 추가됨",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

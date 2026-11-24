@@ -1,0 +1,54 @@
+{
+ "label_id": "d24",
+ "claims": [
+  {
+   "claim": "답은 2011년 7월 1일 시행 조문 기준이라고 함",
+   "verdict": "unsupported",
+   "source": null,
+   "note": "자료는 시행 2010-11-18 등이며 2011-07-01 시행 조문임을 보여주는 내용이 없음"
+  },
+  {
+   "claim": "전자채권 양도 통지·승낙의 전자서명 종류는 전자서명법 제2조제3호의 공인전자서명이다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "전자금융거래법 제20조제1항제1호: 양도 통지 또는 승낙이 공인전자서명을 한 전자문서로 이루어질 것",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "전자금융거래법 제2조제16호: 전자채권은 공인전자서명이 있는 전자문서에 기재된 금전채권",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "해당 전자문서가 전자채권관리기관에 등록되어야 민법 제450조제1항 대항요건을 갖춘다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "통지·승낙 전자문서에 시점확인이 있으면 민법 제450조제2항 대항요건도 갖춘다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "2020년 전자서명법 전부개정으로 공인전자서명 제도가 폐지되었다",
+   "verdict": "unsupported",
+   "source": null,
+   "note": "자료에 없음"
+  },
+  {
+   "claim": "2011년 7월 1일 당시 위 규정이 유효했다",
+   "verdict": "unsupported",
+   "source": null,
+   "note": "자료의 시행일은 2010-11-18이며 2011-07-01 시점 유효성을 보여주지 않음"
+  }
+ ],
+ "unfaithful": true
+}

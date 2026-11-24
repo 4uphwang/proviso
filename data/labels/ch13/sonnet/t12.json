@@ -1,0 +1,24 @@
+{
+ "label_id": "t12",
+ "claims": [
+  {
+   "claim": "금소법 과태료 부과기준표는 금융소비자 보호에 관한 법률 시행령 별표 4에 있다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제51조가 법 제69조에 따른 과태료 부과기준을 별표 4로 정하고 있다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "검색 결과에 별표 4의 내용이 확인된다",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

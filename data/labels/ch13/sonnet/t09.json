@@ -1,0 +1,78 @@
+{
+ "label_id": "t09",
+ "claims": [
+  {
+   "claim": "2022.6.29 시행분(2021.12.28 개정 반영) 조문 기준으로 답한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": "시행 2022-06-29 헤더"
+  },
+  {
+   "claim": "창업·벤처전문 사모집합투자기구의 투자 대상 기업(창업·벤처기업등)은 법 제249조의23제1항의 6가지",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "1호: 중소기업창업 지원법 제2조제3호 창업기업, 같은 법 제5조제1항 단서 업종 중소기업이면 제외",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "2호: 벤처기업육성에 관한 특별조치법 제2조제1항 벤처기업",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "3호: 기술혁신형 중소기업(제15조) 또는 경영혁신형 중소기업(제15조의3)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "4호: 기술보증기금법 제2조제1호 신기술사업자",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "5호: 소재·부품·장비산업 특별조치법 제2조제5호 전문기업으로서 중소기업",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "6호: 그 밖에 성장기반 조성 및 건전한 발전이 필요한 중소기업으로서 대통령령으로 정하는 기업",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "운용은 출자일부터 2년 이내(금융위 승인 시 1년 범위 연장 가능)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "출자금액의 100분의 50 이상을 운용해야 한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "운용방법: 창업·벤처기업등이 발행한 증권 투자, 투자목적회사 지분증권 투자",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "운용방법: 대출채권 등 채권의 매매, 독립 회계로 운영되는 사업에 대한 투자(시행령 제271조의28제4항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

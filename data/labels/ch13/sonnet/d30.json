@@ -1,0 +1,42 @@
+{
+ "label_id": "d30",
+ "claims": [
+  {
+   "claim": "신주 발행가액은 순자산액에 기초해 대통령령이 정한 방법으로 산정(제196조제5항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제230조: 대통령령 방법은 법 제238조제6항 기준가격 계산방법",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "같은 날 발행 신주의 발행가액·발행조건은 균등하게 정함",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "신주의 수·발행가액·납입기일은 이사회가 결정, 정관에 달리 정하면 그에 따름",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "환매금지형투자회사는 기준가격 산정액과 증권시장 거래가격을 고려해 발행가액 정할 수 있음",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "환매금지형 집합투자증권에는 제238조제6~8항 비적용, 추가발행 가능한 경우는 적용",
+   "verdict": "supported",
+   "source": 5,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

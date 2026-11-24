@@ -1,0 +1,18 @@
+{
+ "label_id": "d15",
+ "claims": [
+  {
+   "claim": "본인신용정보관리업은 개인인 신용정보주체의 신용관리를 지원하기 위해 대통령령이 정하는 방식으로 통합하여 그 신용정보주체에게 제공하는 행위를 영업으로 하는 것",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "근거 조문은 신용정보법 제2조 제9의2호",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

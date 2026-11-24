@@ -1,0 +1,42 @@
+{
+ "label_id": "d25",
+ "claims": [
+  {
+   "claim": "수익자총회 소집통지는 전자등록기관에 위탁해야 함",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "위탁 주체에 법 제190조제3항 후단의 신탁업자 또는 5% 이상 수익자 포함",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "전자등록기관은 소집통지 시 또는 청구 시 의결권 행사 서면을 보내야 함",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "서면에 가부 등이 명확히 표시되게 하고 집합투자업자로부터 참고자료를 받아 보냄",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "연기수익자총회도 같은 방식(전자등록기관 위탁)으로 통지",
+   "verdict": "supported",
+   "source": 1,
+   "note": "제220조제4항이 제1항에 따라 통지하도록 함"
+  },
+  {
+   "claim": "소집통지 일반사항은 상법 제363조제1항·제2항이 준용됨(법 제190조제4항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

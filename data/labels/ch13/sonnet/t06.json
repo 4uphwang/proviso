@@ -1,0 +1,54 @@
+{
+ "label_id": "t06",
+ "claims": [
+  {
+   "claim": "2018년 7월 1일 시행 조문 기준이라는 적용 시점",
+   "verdict": "contradicted",
+   "source": 1,
+   "note": "자료 시행일은 2018-05-29"
+  },
+  {
+   "claim": "법 제43조의3과 대통령령으로 정하는 신용정보회사등 범위 규정",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "대통령령 정하는 자 중 금융위가 고시하는 자가 대상",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "대상 1호 신용정보집중기관, 2호 신용정보회사",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "3호 제5조제1항제1호부터 제21호까지 해당자",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "3호 해당자를 '신용정보처리업자 등'이라고 설명",
+   "verdict": "unsupported",
+   "source": null,
+   "note": "자료에 그런 설명 없음"
+  },
+  {
+   "claim": "4호 제21조제2항 각 호 해당자",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "금융위 기준에 따라 보험·공제 가입 또는 준비금 적립 등 조치 의무(제43조의3)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": true
+}

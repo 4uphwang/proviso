@@ -1,0 +1,42 @@
+{
+ "label_id": "d11",
+ "claims": [
+  {
+   "claim": "대상은 개인신용평가회사·개인사업자신용평가회사(심사대상회사)의 최대주주 적격성 심사대상이다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "법 제9조의2제2항은 사유 발생 사실을 인지하면 지체 없이 금융위에 보고하도록 한다",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제9조의2제6항은 알게 된 날부터 7영업일 이내 보고하도록 한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "보고 시 충족하지 못하는 유지요건의 내용·사유 등을 함께 제출한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": "제6항 각 호"
+  },
+  {
+   "claim": "보고 시 주주명부 등 필요한 자료를 함께 제출한다",
+   "verdict": "contradicted",
+   "source": 1,
+   "note": "제6항 보고사항에 주주명부 없음; 주주명부는 제7항에서 금융위 요구 시 10영업일 내 제출 대상"
+  },
+  {
+   "claim": "금융투자업자는 최대주주가 변경된 때 등에 금융위에 보고해야 한다(자본시장법 제418조)",
+   "verdict": "supported",
+   "source": 4,
+   "note": ""
+  }
+ ],
+ "unfaithful": true
+}

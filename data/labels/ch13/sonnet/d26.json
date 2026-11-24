@@ -1,0 +1,24 @@
+{
+ "label_id": "d26",
+ "claims": [
+  {
+   "claim": "투자유한회사 지분증권에는 법인이사가 기명날인 또는 서명",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "근거는 법 제208조제2항",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "법인이사는 제208조 제1항에 따른 것",
+   "verdict": "contradicted",
+   "source": 2,
+   "note": "법인이사는 제209조제1항에 따른 것이며 제208조제1항은 사원의 권리 규정"
+  }
+ ],
+ "unfaithful": true
+}

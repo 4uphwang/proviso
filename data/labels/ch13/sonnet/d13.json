@@ -1,0 +1,30 @@
+{
+ "label_id": "d13",
+ "claims": [
+  {
+   "claim": "가맹점계약 해지 사유는 법 제38조제4항의 대통령령 사유(영 제23조)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "법 제26조 또는 제37조제3항제3~5호 위반으로 형을 선고받은 경우",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "법 제37조제1항·제2항 또는 제3항제3~5호 위반에 관해 행정기관 서면통보가 있는 경우",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "행정기관으로부터 가맹점 폐업사실을 서면 통보받은 경우",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

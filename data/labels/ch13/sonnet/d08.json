@@ -1,0 +1,36 @@
+{
+ "label_id": "d08",
+ "claims": [
+  {
+   "claim": "신용조회회사는 영리 목적으로 신용정보업 외 다른 업무를 겸업할 수 없다(법 제11조제2항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "국가·지자체 및 대통령령 공공단체 의뢰 공공목적 조사·분석 업무로 금융위 승인 시 예외",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "대통령령 공공단체는 시행령 제11조의2에 따른 공공기관, 투자·출연·보조기관, 특수법인, 어음교환소, 학교, 보험요율산출기관, 신용회복위원회, 신용정보집중기관 등",
+   "verdict": "supported",
+   "source": 7,
+   "note": ""
+  },
+  {
+   "claim": "일반 신용정보회사는 제11조제1항에 따라 일정 제한업무 외에 금융위 신고 후 겸업 가능",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "신용조회회사에는 제11조제2항이 별도로 더 엄격한 제한을 둔다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

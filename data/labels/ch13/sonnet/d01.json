@@ -1,0 +1,36 @@
+{
+ "label_id": "d01",
+ "claims": [
+  {
+   "claim": "금융위 고시 수량 이상 보유 시 5일 이내(대통령령 정하는 날 제외) 금융위·거래소 보고",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "보고사항: 대량보유자·위탁 금융투자업자, 품목·종목, 보유 시점·가격·수량, 고시 사항 (시행령 제200조의2제3항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "보유 수량이 고시 수량 이상으로 변동되면 변동일부터 5일 이내 보고",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "위탁자는 금융투자업자에게 대신 보고하게 할 수 있음",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "보고일 전날까지 새 변동 사유 발생 시 당초 보고 때 함께 보고",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

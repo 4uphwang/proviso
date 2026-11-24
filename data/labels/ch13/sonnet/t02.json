@@ -1,0 +1,54 @@
+{
+ "label_id": "t02",
+ "claims": [
+  {
+   "claim": "전자화폐 정의: 이전 가능한 금전적 가치 저장 증표로서 5가지 요건 모두 충족(제2조제15호)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "가목 범용성: 대통령령 기준 이상의 지역 및 가맹점",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "범용성 기준은 2개 이상 광역지자체 및 500개 이상 가맹점(시행령 제4조제1항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "나목은 제14호 가목의 요건 충족이며 이는 이전 가능한 금전적 가치 저장 증표라는 내용",
+   "verdict": "unsupported",
+   "source": 1,
+   "note": "자료상 제14호 가목은 삭제되었고, 그 내용이 가목이라는 설명은 자료에 없음"
+  },
+  {
+   "claim": "다목: 재화·용역 범위 5개 이상 업종, 업종 수 5개(시행령 제4조제2항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "라목: 현금 또는 예금과 동일한 가치로 교환되어 발행",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "마목: 발행자에 의해 현금 또는 예금으로 교환 보장",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "전자화폐가 아닌 것에는 전자화폐 명칭 사용 금지(제36조제1항)",
+   "verdict": "supported",
+   "source": 5,
+   "note": ""
+  }
+ ],
+ "unfaithful": true
+}

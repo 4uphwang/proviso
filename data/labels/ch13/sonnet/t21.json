@@ -1,0 +1,48 @@
+{
+ "label_id": "t21",
+ "claims": [
+  {
+   "claim": "2023년 7월 1일 시행 조문 기준으로 답변",
+   "verdict": "supported",
+   "source": null,
+   "note": "자료 시행일(2021-12-30, 2023-01-01, 2023-06-13)이 모두 그 날 이전이라 기준 적용과 모순 없음"
+  },
+  {
+   "claim": "이의신청 결정 기한은 60일, 부득이하면 30일 범위 연장",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "금소법 제55조제2항: 제51조·제52조 처분 이의신청에 60일, 30일 연장",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "금소법 제59조제2항: 과징금 부과처분 이의신청 60일, 30일 연장",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "자본시장법 제425조제2항·제432조제2항: 60일 이내 결정, 30일 연장",
+   "verdict": "supported",
+   "source": 3,
+   "note": ""
+  },
+  {
+   "claim": "시행령 제269조제3항: 집합투자업자 이의신청은 30일 이내, 부득이하면 60일 이내 결정",
+   "verdict": "supported",
+   "source": 5,
+   "note": ""
+  },
+  {
+   "claim": "이의신청은 처분 고지받은 날부터 30일 이내에 해야 함",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

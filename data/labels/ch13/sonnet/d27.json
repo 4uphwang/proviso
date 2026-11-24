@@ -1,0 +1,24 @@
+{
+ "label_id": "d27",
+ "claims": [
+  {
+   "claim": "투자합자회사 업무집행사원은 1인",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "업무집행사원 1인 외의 무한책임사원을 둘 수 없음(제214조제1항)",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "업무집행사원은 상법 제173조에도 불구하고 집합투자업자여야 함",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

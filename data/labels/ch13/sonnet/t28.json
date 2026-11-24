@@ -1,0 +1,54 @@
+{
+ "label_id": "t28",
+ "claims": [
+  {
+   "claim": "펀드평가회사 위법 시 금융위가 회사에 취할 조치는 제262조제2항",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "별표 4 해당 시 등록 취소 가능(제262조제1항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "6개월 이내 업무정지, 계약인계명령, 시정·중지명령, 공표·게시명령, 기관경고, 기관주의",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "제262조제2항제7호의 대통령령 조치는 시행령 제284조제1항",
+   "verdict": "supported",
+   "source": "2,3",
+   "note": ""
+  },
+  {
+   "claim": "시행령 제284조제1항 조치: 영업소 폐쇄·업무정지, 개선요구·권고, 변상 요구, 고발·통보, 기타",
+   "verdict": "supported",
+   "source": 3,
+   "note": ""
+  },
+  {
+   "claim": "임원 조치: 해임요구, 6개월 이내 직무정지, 문책경고, 주의적 경고, 주의, 기타(제262조제3항, 시행령 제284조제2항)",
+   "verdict": "supported",
+   "source": "2,3",
+   "note": ""
+  },
+  {
+   "claim": "직원 조치(회사에 요구): 면직, 6개월 이내 정직, 감봉, 견책, 경고, 주의, 기타(제262조제4항)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "변상·개선은 시행령 제284조제1항제2호·제3호의 개선요구·권고와 변상 요구에 해당",
+   "verdict": "supported",
+   "source": 3,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

@@ -1,0 +1,24 @@
+{
+ "label_id": "d07",
+ "claims": [
+  {
+   "claim": "개인식별번호는 신용정보법 시행령 제2조제2항에서 정한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "재외동포 관련 개인식별번호는 재외동포법 제7조제1항에 따른 국내거소신고번호이다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "해당 내용은 시행령 제2조제2항제5호이다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

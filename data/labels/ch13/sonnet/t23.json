@@ -1,0 +1,18 @@
+{
+ "label_id": "t23",
+ "claims": [
+  {
+   "claim": "조사공무원은 금융위 소속 공무원 중 증선위 위원장 제청으로 검찰총장이 지명하는 자(시행령 제378조)",
+   "verdict": "supported",
+   "source": 2,
+   "note": ""
+  },
+  {
+   "claim": "법 제427조제1항의 '대통령령으로 정하는 자'를 조사공무원으로 규정",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}

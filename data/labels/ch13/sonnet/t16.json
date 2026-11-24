@@ -1,0 +1,42 @@
+{
+ "label_id": "t16",
+ "claims": [
+  {
+   "claim": "법 제422조제2항: 직원이 제420조제1항 각 호(제6호 제외) 또는 별표 1 해당 시 금융위가 업자에게 조치를 요구할 수 있다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "요구 가능 조치: 면직, 6개월 이내 정직, 감봉, 견책, 경고, 주의, 대통령령 정하는 그 밖의 조치",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "제422조제3항: 관리·감독 책임 임직원에 대한 조치도 함께 요구할 수 있다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "관리·감독에 상당한 주의를 다한 경우 조치를 감면할 수 있다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  },
+  {
+   "claim": "임원은 금융위가 직접 조치(해임요구, 6개월 이내 직무정지, 문책경고, 주의적 경고, 주의 등)한다",
+   "verdict": "supported",
+   "source": 1,
+   "note": "제422조제1항"
+  },
+  {
+   "claim": "직원은 금융투자업자에게 조치를 요구하는 방식이라는 차이가 있다",
+   "verdict": "supported",
+   "source": 1,
+   "note": ""
+  }
+ ],
+ "unfaithful": false
+}
