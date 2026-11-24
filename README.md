@@ -50,7 +50,9 @@
 
 DeepSeek V4 Flash는 질문당 약 $0.001로 세 지표 모두 4b보다 높았습니다(95% 구간이 0을 벗어남). 가장 싼 Solar mini4는 근거는 좋지만 개인 사안·투자 조언 질문 33개 중 17개에 답했습니다. 로컬 9b는 4b보다 뚜렷하게 낫지 않았고, gpt-oss-20b는 이 작업에 맞지 않았습니다. API 모델은 temperature 0에서도 답이 매번 달라 dev에서 3회씩 돌렸습니다.
 
-[10장](docs/chapters/10-refusal-guard.md)에서는 개인 사안 판단과 투자 조언 질문을 모델을 부르기 전에 규칙으로 걸렀습니다. 비용 0원으로 test 거절 정확도가 4b 0.697 → 0.848, Solar mini4 0.485 → 0.848, GLM-5.3 Flash 0.879 → 1.000, DeepSeek V4 Flash 0.909 → 1.000이 됐고, 정상 질문의 답은 바뀌지 않았습니다(검색 세트 정상 질문 700개 중 2개를 잘못 막음).
+[10장](docs/chapters/10-refusal-guard.md)에서는 개인 사안 판단과 투자 조언 질문을 모델을 부르기 전에 규칙으로 걸렀습니다. 비용 0원으로 test 거절 정확도가 4b 0.697 → 0.848, Solar mini4 0.485 → 0.848, GLM-5.3 Flash 0.879 → 1.000, DeepSeek V4 Flash 0.909 → 1.000이 됐고, 정상 질문의 답은 바뀌지 않았습니다(검색 세트 정상 질문 700개 중 2개를 잘못 막음). 수집하지 않은 법령 질문을 재정렬 점수로 가르는 것은 정상 질문을 너무 많이 막아 채택하지 않았습니다.
+
+[11장](docs/chapters/11-guardrails.md)에서는 공격 문항 36개(지시문 유출, 지시 덮어쓰기, 역할극, 없는 조문 인용 유도, 붙여 넣은 글 속 지시, 개인정보)로 가드레일을 쟀습니다. test에서 통한 공격이 4b 6/24 → 0/24, DeepSeek V4 Flash 5/24 → 0/24가 됐습니다. 효과는 코드로 하는 검사(개인정보 가리기, 없는 조문 차단, 답에 나온 지시문 검사)에서 나왔고, 말투로 지시 바꾸기를 잡는 규칙은 test 16개 중 1개만 잡았습니다. `proviso agent ask`는 이제 DeepSeek V4 Flash를 기본으로 쓰고(키가 없으면 4b), 10·11장 방어를 늘 켭니다.
 
 ## 실행
 ```bash
@@ -60,7 +62,7 @@ docker compose up -d          # Postgres 17 + pgvector, 포트 5433
 .venv/bin/proviso db init
 .venv/bin/proviso evalset check evalset/examples.jsonl
 .venv/bin/pytest
-.venv/bin/proviso agent ask "온라인소액투자중개 등록하려면 자기자본이 얼마 필요한가요?"   # 색인과 Ollama(qwen3.5:4b) 필요
+.venv/bin/proviso agent ask "온라인소액투자중개 등록하려면 자기자본이 얼마 필요한가요?"   # 색인 필요. 기본 모델은 오픈라우터 DeepSeek V4 Flash(.env의 OPENROUTER_API_KEY), 키가 없으면 Ollama qwen3.5:4b
 .venv/bin/proviso trace <id>                                                            # 단계별 기록
 ```
 

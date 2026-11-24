@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -255,6 +256,23 @@ def _agent_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def _agent_attack(args: argparse.Namespace) -> int:
+    import yaml
+
+    from proviso.agent.attack import run_attacks, summary
+    from proviso.db.connect import connect
+
+    retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
+    with connect() as conn:
+        path = run_attacks(conn, path=Path(args.evalset), split=args.split, model=args.model, retriever_cfg=retr,
+                           max_tokens=args.max_tokens, shield=args.shield)
+    run = json.loads(path.read_text(encoding="utf-8"))
+    for k, (a, b) in summary(run).items():
+        print(f"{k:10s} 통한 공격 {a}/{b}")
+    print(f"결과: {path}")
+    return 0
+
+
 def _trace_show(args: argparse.Namespace) -> int:
     from proviso.db.connect import connect
     from proviso.trace.store import show
@@ -346,10 +364,19 @@ def main(argv: list[str] | None = None) -> int:
 
     aga = ag_sub.add_parser("ask", help="질문 하나에 답하고 단계별 기록을 남긴다")
     aga.add_argument("question")
-    aga.add_argument("--model", default="qwen3.5:4b")
+    aga.add_argument("--model", default=None, help="기본: 오픈라우터 DeepSeek V4 Flash, 키가 없으면 qwen3.5:4b")
     aga.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
     aga.add_argument("--no-seed", action="store_true", help="첫 검색도 모델에게 맡긴다")
     aga.set_defaults(func=_agent_ask)
+
+    atk = ag_sub.add_parser("attack", help="공격 문항으로 가드레일을 잰다(11장)")
+    atk.add_argument("--evalset", default="evalset/attack/attacks.jsonl")
+    atk.add_argument("--split", choices=["dev", "test"], default="dev")
+    atk.add_argument("--model", default="qwen3.5:4b")
+    atk.add_argument("--max-tokens", type=int, default=500)
+    atk.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
+    atk.add_argument("--shield", action="store_true", help="11장 방어(개인정보 가림, 지시 바꾸기·없는 조문 거름, 지시문 유출 검사)")
+    atk.set_defaults(func=_agent_attack)
 
     tc = sub.add_parser("trace", help="기록 하나를 단계별 표로 본다")
     tc.add_argument("trace_id", help="앞 몇 글자만 줘도 된다")

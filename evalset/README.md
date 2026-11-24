@@ -5,6 +5,7 @@
 | `examples.jsonl` | 형식 예시 3문항(실제 평가에 쓰지 않음) |
 | `retrieval.jsonl` | 검색 세트 1,000문항 |
 | `agent.jsonl` | 에이전트 세트 258문항(답변까지 채점, 5장) |
+| `attack/attacks.jsonl` | 공격 문항 36개(가드레일, 11장). Claude 작성, 형식은 [11장](../docs/chapters/11-guardrails.md) |
 
 형식과 규칙은 [docs/plan.md §7.1](../docs/plan.md)에 있다. 검증:
 
