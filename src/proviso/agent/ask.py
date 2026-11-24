@@ -91,7 +91,7 @@ class Asker:
 
     def answer(self, question: str, *, model: str | None = None, seed_search: bool = True,
                on_step: Callable[[dict], None] | None = None) -> Answer:
-        from proviso.answer.guard import REFUSAL, leaked, screen
+        from proviso.answer.guard import REFUSAL, leaked, screen, uncited
         from proviso.answer.pii import mask
 
         t0 = time.perf_counter()
@@ -109,6 +109,8 @@ class Asker:
             return Answer(UNAVAILABLE, kind="unavailable", seconds=time.perf_counter() - t0)
         if leaked(tr.answer):  # 11장: 시스템 지시문이 답에 나오면 거절로 바꾼다
             tr.answer = REFUSAL["injection"]
+        elif uncited(tr.answer, self.names):  # 인용이 하나도 없는 답은 내보내지 않는다(계획서 §5.2)
+            tr.answer = REFUSAL["uncited"]
         law = self.law
         r = judge(tr.answer, set(tr.shown), set(law.articles) | set((law_at or law).articles), tr.context, self.names)
         tid = save(self.conn, tr, question=question, answer=tr.answer, refused=r["refused"],

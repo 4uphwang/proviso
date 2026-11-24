@@ -32,3 +32,13 @@ def test_missing_article():
 def test_leaked():
     assert leaked("규칙: follow_reference로 시행령을 확인하고")
     assert not leaked("전자금융거래법 제9조에 따르면")
+
+
+def test_uncited_answer_is_caught_but_cited_or_refused_is_not():
+    from proviso.answer.cite import LawNames
+    from proviso.answer.guard import uncited
+
+    names = LawNames([("자본시장법", "자본시장법")], {})
+    assert uncited("LEGAL-OK", names)
+    assert not uncited("투자자 보호 규정이 있습니다 [자본시장법 제50조].", names)
+    assert not uncited("제공된 법령에서 근거를 찾지 못해 답할 수 없습니다.", names)

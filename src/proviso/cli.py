@@ -297,7 +297,7 @@ def _agent_attack(args: argparse.Namespace) -> int:
     retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
     with connect() as conn:
         path = run_attacks(conn, path=Path(args.evalset), split=args.split, model=args.model, retriever_cfg=retr,
-                           max_tokens=args.max_tokens, shield=args.shield)
+                           max_tokens=args.max_tokens, shield=args.shield, workers=args.workers)
     run = json.loads(path.read_text(encoding="utf-8"))
     for k, (a, b) in summary(run).items():
         print(f"{k:10s} 통한 공격 {a}/{b}")
@@ -442,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
     atk.add_argument("--model", default="qwen3.5:4b")
     atk.add_argument("--max-tokens", type=int, default=500)
     atk.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
+    atk.add_argument("--workers", type=int, default=1, help="동시에 돌릴 문항 수(API 모델일 때)")
     atk.add_argument("--shield", action="store_true", help="11장 방어(개인정보 가림, 지시 바꾸기·없는 조문 거름, 지시문 유출 검사)")
     atk.set_defaults(func=_agent_attack)
 

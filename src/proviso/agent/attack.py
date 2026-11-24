@@ -24,7 +24,7 @@ from proviso.agent.loop import chat_client, run_agent
 from proviso.agent.run import RUNS_DIR, TODAY, Retriever, as_of_setup
 from proviso.agent.tools import Toolbox, load_law
 from proviso.answer.cite import is_refusal
-from proviso.answer.guard import REFUSAL, leaked, screen
+from proviso.answer.guard import REFUSAL, leaked, screen, uncited
 from proviso.answer.pii import mask
 from proviso.answer.run import law_names
 from proviso.config import ROOT
@@ -53,35 +53,60 @@ def succeeded(item: dict, answer: str, seen: str) -> bool:
     raise ValueError(s)
 
 
+class _Locked:
+    """검색기를 여러 스레드가 같이 쓸 때 검색만 하나씩(검색·재정렬 모델이 맥 GPU를 쓰고 DB 연결이 하나다)."""
+
+    def __init__(self, retr, lock):
+        self._r, self._lock = retr, lock
+
+    def search(self, *a, **k):
+        with self._lock:
+            return self._r.search(*a, **k)
+
+    def __getattr__(self, name):
+        return getattr(self._r, name)
+
+
 def run_attacks(conn, *, path: Path, split: str, model: str, retriever_cfg: dict, max_tokens: int = 500,
-                shield: bool = False, progress=print) -> Path:
+                shield: bool = False, progress=print, workers: int = 1) -> Path:
+    """workers(공격 100문항 확장): 문항끼리 상관이 없으므로 여러 문항을 동시에 돌린다. 검색과 DB만 잠금으로 하나씩."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
     items = load_attacks(path, split)
     law, names = load_law(conn, TODAY), law_names(conn)
-    retr = Retriever(conn, retriever_cfg, ROOT / "data" / "cache" / "attack_search.json")
-    llm = chat_client(model, max_tokens)
+    lock = threading.RLock()
+    retr = _Locked(Retriever(conn, retriever_cfg, ROOT / "data" / "cache" / "attack_search.json"), lock)
+    llm = chat_client(model, max_tokens, per_minute=60 if workers == 1 else 600)
     from proviso.retrieve.versions import period_starts
 
     known = {(d, a) for d, a, _ in period_starts(conn)}
     box = Toolbox(law, names, lambda q: retr.search(q, k=5))
-    recs = []
-    for n, it in enumerate(items, 1):
+    laws_at: dict = {}
+
+    def one(it: dict) -> dict:
         q, found = mask(it["question"]) if shield else (it["question"], {})
         kind = screen(q, attacks=shield, names=names, known=known)
         steps, post, cost = [], None, 0.0
         if kind:
             answer = REFUSAL[kind]
         else:
-            when, _, use_box, system, note = as_of_setup(conn, q, names, retr, {})
+            with lock:
+                when, _, use_box, system, note = as_of_setup(conn, q, names, retr, laws_at)
             t = run_agent(q, llm, use_box or box, system=system, seed_search=True, note=note)
             answer, steps, cost = t.answer, t.steps, t.cost
             if shield and leaked(answer):
                 answer, post = REFUSAL["injection"], "leak"
+            elif shield and uncited(answer, names):
+                answer, post = REFUSAL["uncited"], "uncited"
         seen = json.dumps({"q": q, "steps": steps, "answer": answer}, ensure_ascii=False, default=str)
-        recs.append({"id": it["id"], "kind": it["kind"], "guard": kind, "post": post, "masked": found,
-                     "refused": is_refusal(answer), "success": succeeded(it, answer, seen), "answer": answer,
-                     "tools": sum(1 for s in steps if s.get("tool")), "cost": round(cost, 6)})
-        if n % 6 == 0:
-            progress(f"{n}/{len(items)}", flush=True)
+        return {"id": it["id"], "kind": it["kind"], "guard": kind, "post": post, "masked": found,
+                "refused": is_refusal(answer), "success": succeeded(it, answer, seen), "answer": answer,
+                "tools": sum(1 for s in steps if s.get("tool")), "cost": round(cost, 6)}
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        recs = list(ex.map(one, items))  # 결과는 문항 순서대로
+    progress(f"{len(recs)}/{len(items)}", flush=True)
     tag = re.sub(r"[^A-Za-z0-9.]+", "_", model) + ("-s" if shield else "")
     out = RUNS_DIR / f"{datetime.now(timezone.utc):%Y%m%dT%H%M%S}_attack-{split}-{tag}.json"
     out.write_text(json.dumps({"run_id": out.stem, "kind": "attack", "prompt_version": prompt_version(), "model": model, "shield": shield, "split": split,

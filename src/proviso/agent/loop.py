@@ -220,7 +220,7 @@ def _post(http: httpx.Client, path: str, body: dict) -> dict:
     return r.json()
 
 
-def chat_client(model: str, max_tokens: int = 500, repeat: int = 0):
+def chat_client(model: str, max_tokens: int = 500, repeat: int = 0, per_minute: int = 60):
     """'openrouter:<모델 id>[@추론 단계][+cache]'면 오픈라우터, 아니면 로컬 Ollama. 예: openrouter:openai/gpt-oss-20b@low
     +cache(18장): 시스템과 마지막 메시지에 캐시 표시, +cache-sys: 시스템에만. 예: openrouter:anthropic/claude-haiku-5.5+cache-sys
     max_tokens: 답 길이 상한. 500은 5장에서 4B의 끝없는 반복을 끊으려고 정한 값이다(9장: API 모델은 답을 길게 써서 잘린다)."""
@@ -230,7 +230,8 @@ def chat_client(model: str, max_tokens: int = 500, repeat: int = 0):
     spec, _, cache = spec.partition("+")
     cache = {"cache": "all", "cache-sys": "sys"}.get(cache) if cache else None
     mid, _, effort = spec.partition("@")
-    return OpenAIChat(mid, reasoning=effort or None, num_predict=max_tokens, repeat=repeat, prompt_cache=cache)
+    return OpenAIChat(mid, reasoning=effort or None, num_predict=max_tokens, repeat=repeat, prompt_cache=cache,
+                      per_minute=per_minute)
 
 
 @dataclass
