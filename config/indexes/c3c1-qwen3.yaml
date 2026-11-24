@@ -1,0 +1,13 @@
+# 12장: c3c1-bge-m3와 같은 조각을 Qwen3-Embedding-0.6B로 임베딩. 토크나이저가 달라 같은 조각이 더 길게 셀 수 있어
+# 입력 한도를 1024로 둔다(2장: 입력이 잘리면 본문 끝이 빠진 채 임베딩된다). 질문에만 지시문을 붙인다.
+name: c3c1-qwen3
+chunking:
+  type: article
+  size: 500
+  header: true
+  tokenizer: BAAI/bge-m3
+embedding:
+  model: Qwen/Qwen3-Embedding-0.6B
+  max_length: 1024
+  batch_size: 16
+  query_prompt: "Instruct: Given a question about Korean financial law, retrieve the law article that answers it\nQuery:"

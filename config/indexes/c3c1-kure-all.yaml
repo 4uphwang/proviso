@@ -1,0 +1,12 @@
+# 12장: c3c1-kure와 같은 조각·임베딩으로 제정 이후 모든 본문(7장 c3c1-bge-m3-all과 같은 방식)
+name: c3c1-kure-all
+versions: all
+chunking:
+  type: article
+  size: 500
+  header: true
+  tokenizer: BAAI/bge-m3
+embedding:
+  model: nlpai-lab/KURE-v1
+  max_length: 512
+  batch_size: 16

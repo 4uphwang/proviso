@@ -96,7 +96,12 @@ def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedde
     if ch.get("type") not in ("fixed", "article"):
         raise ValueError(f"모르는 청킹 방식: {ch.get('type')!r}")
     embedder = embedder or Embedder(em["model"], max_length=em.get("max_length", 512),
-                                    batch_size=em.get("batch_size", 16))
+                                    batch_size=em.get("batch_size", 16), query_prompt=em.get("query_prompt"))
+    tokenize = embedder.tokenize_offsets
+    if ch.get("tokenizer"):  # 12장: 조각 길이를 다른 모델 토크나이저로 세서 임베딩 모델끼리 조각을 같게 한다
+        from proviso.index.embed import tokenizer_offsets
+
+        tokenize = tokenizer_offsets(ch["tokenizer"])
     snapshot = latest_snapshot(conn)
     method = {"chunking": ch, "embedding": embedder.describe()}
     if versions == "all":
@@ -112,9 +117,9 @@ def build_index(conn, cfg: dict[str, Any], *, as_of: date | None = None, embedde
     source = text_periods(conn) if versions == "all" else current_articles(conn, as_of)
     for doc, arts in source.items():
         if ch["type"] == "fixed":
-            cs = fixed_chunks(arts, embedder.tokenize_offsets, size=ch["size"], overlap=ch["overlap"])
+            cs = fixed_chunks(arts, tokenize, size=ch["size"], overlap=ch["overlap"])
         else:
-            cs = article_chunks(arts, embedder.tokenize_offsets, size=ch["size"], header=ch.get("header", False))
+            cs = article_chunks(arts, tokenize, size=ch["size"], header=ch.get("header", False))
         chunks += [{"doc_id": doc, **c} for c in cs]
     log(f"조각 {len(chunks)}개, 임베딩 중({embedder.model_name})")
     vecs = embedder.encode([c["text"] for c in chunks])

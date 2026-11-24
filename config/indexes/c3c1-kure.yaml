@@ -1,0 +1,11 @@
+# 12장: c3c1-bge-m3와 같은 조각(bge-m3 토크나이저로 500토큰)을 KURE-v1(bge-m3를 한국어 검색 데이터로 더 학습)로 임베딩
+name: c3c1-kure
+chunking:
+  type: article
+  size: 500
+  header: true
+  tokenizer: BAAI/bge-m3
+embedding:
+  model: nlpai-lab/KURE-v1
+  max_length: 512
+  batch_size: 16

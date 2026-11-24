@@ -30,7 +30,8 @@ class DenseRetriever:
         self._method = method
         self._chunks = n
         em = method["embedding"]
-        self._embedder = embedder or Embedder(em["model"], max_length=em.get("max_length", 512))
+        self._embedder = embedder or Embedder(em["model"], max_length=em.get("max_length", 512),
+                                                     query_prompt=em.get("query_prompt"))
         self._vindex_id = None
         if versions_index:
             from proviso.retrieve.versions import SpanMap
@@ -50,7 +51,8 @@ class DenseRetriever:
         청킹 방식마다 조각 하나에 든 조문 수가 달라서(고정 길이는 여럿, 조 단위는 하나, 긴 조문은 여러 조각),
         '조각 k개'가 아니라 '조문 k개'로 맞춰야 방식 간 비교가 공정하다.
         """
-        q = self._embedder.encode([question])[0]
+        enc = getattr(self._embedder, "encode_query", self._embedder.encode)
+        q = enc([question])[0]
         qv = "[" + ",".join(f"{x:.6f}" for x in q) + "]"
         if self._vindex_id and as_of is not None:
             return self._search_at(qv, k, as_of)

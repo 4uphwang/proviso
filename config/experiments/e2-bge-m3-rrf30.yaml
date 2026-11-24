@@ -1,0 +1,16 @@
+# 12장: 재정렬 앞 단계(벡터 + BM25 + RRF + 약칭, 기준일 색인)만. 재정렬이 받는 후보 30개 안에 정답이 있는지 본다.
+name: e2-bge-m3-rrf30
+retriever:
+  type: rrf
+  expand_aliases: true
+  params:
+    k_rrf: 60
+    depth: 100
+    parts:
+      dense: {type: dense, params: {index: c3c1-bge-m3, versions_index: c3c1-bge-m3-all}}
+      bm25: {type: bm25, params: {tokenizer: morph, header: true, as_of: "2026-11-20", versions: true}}
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 30
+repeats: 1
+use_as_of: true

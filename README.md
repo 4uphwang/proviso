@@ -54,6 +54,8 @@ DeepSeek V4 Flash는 질문당 약 $0.001로 세 지표 모두 4b보다 높았�
 
 [11장](docs/chapters/11-guardrails.md)에서는 공격 문항 36개(지시문 유출, 지시 덮어쓰기, 역할극, 없는 조문 인용 유도, 붙여 넣은 글 속 지시, 개인정보)로 가드레일을 쟀습니다. test에서 통한 공격이 4b 6/24 → 0/24, DeepSeek V4 Flash 5/24 → 0/24가 됐습니다. 효과는 코드로 하는 검사(개인정보 가리기, 없는 조문 차단, 답에 나온 지시문 검사)에서 나왔고, 말투로 지시 바꾸기를 잡는 규칙은 test 16개 중 1개만 잡았습니다. `proviso agent ask`는 이제 DeepSeek V4 Flash를 기본으로 쓰고(키가 없으면 4b), 10·11장 방어를 늘 켭니다.
 
+[12장](docs/chapters/12-embeddings.md)에서는 임베딩 모델을 비교했습니다. 벡터 검색만 쓰면 KURE-v1이 bge-m3보다 test recall@1 0.441 → 0.494, recall@10 0.764 → 0.817로 나았고(95% 구간이 0을 벗어남), Qwen3-Embedding-0.6B는 recall@10만 올랐습니다. 하지만 지금 검색(BM25 + RRF + 재정렬)에 넣으면 차이가 없었습니다(recall@1 0.666 → 0.667). 재정렬이 받는 후보 30개 안의 정답 비율이 0.960 → 0.964로 거의 같기 때문입니다. 그래서 기본은 bge-m3로 둡니다.
+
 ## 실행
 ```bash
 python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"

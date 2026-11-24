@@ -1,0 +1,22 @@
+# 12장: t1-asof에서 벡터 검색 임베딩만 bge-m3 → KURE-v1로 바꾼다(재정렬이 읽는 본문은 같은 조각이라 그대로).
+name: e2-kure-asof
+retriever:
+  type: rerank
+  params:
+    index: c3c1-bge-m3-all   # 재정렬이 읽을 본문: 모든 본문 기간(현행 본문도 들어 있다)
+    model: BAAI/bge-reranker-v2-m3
+    top_n: 30
+    inner:
+      type: rrf
+      expand_aliases: true
+      params:
+        k_rrf: 60
+        depth: 100
+        parts:
+          dense: {type: dense, params: {index: c3c1-kure, versions_index: c3c1-kure-all}}
+          bm25: {type: bm25, params: {tokenizer: morph, header: true, as_of: "2026-11-20", versions: true}}
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 20
+repeats: 1
+use_as_of: true
