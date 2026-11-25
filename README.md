@@ -21,7 +21,7 @@
 
 ## 목차
 
-[사용 예](#사용-예) · [구조](#구조) · [결과](#결과) · [빠른 시작](#빠른-시작) · [평가 방법](#평가-방법) · [한계](#한계) · [디렉터리](#디렉터리) · [문서](#문서)
+[사용 예](#사용-예) · [구조](#구조) · [결과](#결과) · [빠른 시작](#빠른-시작) · [평가 방법](#평가-방법) · [한계](#한계) · [디렉터리](#디렉터리) · [문서](#문서) · [라이선스](#라이선스)
 
 ## 사용 예
 
@@ -288,3 +288,9 @@ docs/        개발 기록, 계획서, 설계 문서
 
 - **개발 기록** (문제 하나씩 재고 고친 과정, 실패 포함): [기준선](docs/chapters/01-baseline.md) · [조 단위 청킹](docs/chapters/02-article-chunking.md) · [키워드 검색](docs/chapters/03-keyword-search.md) · [재정렬](docs/chapters/04-reranking.md) · [근거 인용](docs/chapters/05-grounding.md) · [에이전트](docs/chapters/06-agent.md) · [과거 시점](docs/chapters/07-temporal.md) · [채점·문맥 조립](docs/chapters/08-scoring-context.md) · [모델 비교](docs/chapters/09-models.md) · [거절 판별](docs/chapters/10-refusal-guard.md) · [가드레일](docs/chapters/11-guardrails.md) · [임베딩](docs/chapters/12-embeddings.md) · [근거 충실도](docs/chapters/13-faithfulness.md) · [장애 대응](docs/chapters/14-resilience.md) · [관측](docs/chapters/15-otel.md) · [서버](docs/chapters/16-serve.md) · [증분 동기화](docs/chapters/17-sync.md) · [프롬프트 캐싱](docs/chapters/18-prompt-caching.md) · [배치 API](docs/chapters/19-batch.md) · [후속 질문](docs/chapters/20-followup.md)
 - 설계: [계획서](docs/plan.md) · [프롬프트의 층](docs/prompt-layers.md) · [그래프 스키마](docs/graph-schema.md) · [법령 연혁 분량 조사](docs/research-versioning.md) · [법적 검토 메모](docs/legal-review.md)
+
+## 라이선스
+
+- 코드와 평가셋: [MIT](LICENSE)
+- 법령 본문: 법제처 국가법령정보센터 Open API에서 받았습니다. 법령은 저작권법 제7조에 따라 보호받지 않는 저작물입니다. 저장소에는 CI 점검용 현행 조문 묶음(`tests/fixtures/corpus.jsonl.gz`)만 들어 있고, 전체 데이터는 `proviso collect`로 직접 받습니다(Open API 인증키 필요).
+- 평가셋의 질문과 라벨은 Claude가 작성했고, 일부를 사람이 검수했습니다([한계](#한계)).
