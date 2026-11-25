@@ -26,6 +26,7 @@ ASK_MODEL = "openrouter:deepseek/deepseek-v4-flash-0731"
 ASK_MAX_TOKENS = 1500  # 9장: API 모델은 500이면 답이 잘린다
 # 14장: 기본 모델이 (재시도까지) 실패하면 다른 회사 모델, 그다음 로컬 4b로 답한다. 순서는 9·13장 결과(거절 정확도, 충실도)다.
 ASK_FALLBACKS = ["openrouter:z-ai/glm-5.3-flash@low", DEFAULT_MODEL]
+CHECK_MODEL = ASK_MODEL  # 범위 검사기: 질문당 한 번 더, 약 0.0003달러
 UNAVAILABLE = "지금은 답변 모델에 연결하지 못해 답할 수 없습니다. 잠시 뒤 다시 물어 주세요."
 
 
@@ -82,6 +83,28 @@ class Asker:
         self.known = {(d, a) for d, a, _ in period_starts(conn)}
         self.hist = TextHistory(conn)
         self.laws_at: dict = {}
+        self._checker = None
+
+    def _offtopic(self, question: str, answer: str) -> str:
+        """범위 검사(answer/offtopic.py). 걸리면 '해 준 다른 일', 아니면 빈 글. 오픈라우터 키가 없으면 건너뛴다.
+        검사기가 (재시도까지) 실패하면 막는다(fail closed)."""
+        from proviso.answer.cite import is_refusal
+        from proviso.answer.offtopic import check
+
+        if is_refusal(answer):
+            return ""
+        if self._checker is None:
+            try:
+                self._checker = chat_client(CHECK_MODEL, 200)
+            except RuntimeError:
+                self._checker = False
+        if not self._checker:
+            return ""
+        try:
+            v = check(self._checker, question, answer)
+        except LLMError:
+            return "검사기 연결 실패"
+        return (v["what"] or "범위 밖 요청") if v["extra"] else ""
 
     def warm(self) -> float:
         """검색·재정렬 모델을 올리고 걸린 초를 돌려준다."""
@@ -93,6 +116,7 @@ class Asker:
                on_step: Callable[[dict], None] | None = None) -> Answer:
         from proviso.answer.guard import REFUSAL, leaked, screen, strip_code, unverified
         from proviso.answer.normalize import normalize
+        from proviso.answer.offtopic import REFUSAL_EXTRA
         from proviso.answer.pii import mask
 
         t0 = time.perf_counter()
@@ -113,6 +137,9 @@ class Asker:
         elif unverified(tr.answer, self.names, set(tr.shown)):  # 이번에 열어 본 조문을 하나도 인용하지 않은 답은 내보내지 않는다
             tr.answer = REFUSAL["uncited"]
         tr.answer, _ = strip_code(tr.answer)  # 법령 답에는 코드가 필요 없다(범위 제한)
+        extra = self._offtopic(question, tr.answer)
+        if extra:  # 답이 질문 속 범위 밖 부탁(가사, 지정 문구, 수식 등)을 따랐으면 내보내지 않는다
+            tr.answer = REFUSAL_EXTRA
         law = self.law
         r = judge(tr.answer, set(tr.shown), set(law.articles) | set((law_at or law).articles), tr.context, self.names)
         tid = save(self.conn, tr, question=question, answer=tr.answer, refused=r["refused"],

@@ -131,7 +131,7 @@ def create_app(make_asker, *, warm: bool = True) -> FastAPI:
     return app
 
 
-def default_app(retriever_config: str = "config/experiments/t1-asof.yaml", model: str | None = None) -> FastAPI:
+def default_app(retriever_config: str = "config/experiments/t1-asof-rr384.yaml", model: str | None = None) -> FastAPI:
     import yaml
 
     from proviso.agent.ask import Asker

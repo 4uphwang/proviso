@@ -140,6 +140,21 @@ test에서도 recall@1이 0.443 → 0.221(가중 0.1), 0.110(가중 0.5)으로 �
 - **C2 doc2query**(조문마다 예상 질문 3개 생성): 조문 1,548개 × 로컬 LLM이라 몇 시간이 걸리고, 같은 4B 모델의 Q1·Q2가 용어를 지어냈고 검색도 나아지지 않았다. 나중에 더 큰 모델로 다시 볼 후보로 남긴다.
 - **R2 LLM 재정렬**(상위 20개를 qwen3.5:9b가 순위 매김): R1이 이미 문항당 6초다. 9B 생성 모델은 그보다 몇 배 느리고, R1을 넘는다는 근거가 dev에 없다. 9장(모델 비교)에서 API 모델과 함께 다시 본다.
 
+## 뒤에 더한 것: 재정렬 입력 길이 512 → 384
+
+19장까지 마친 뒤 검색 지연을 다시 봤다. 7장 검색(t1-asof)에서 1단계 검색은 약 0.5초, 재정렬은 약 6초다. 질문당 (질문, 조각) 쌍 약 73개 × 평균 391토큰을 계산하는 양이고, 반정밀도와 길이별 묶기는 이미 쓰고 있었다. 배치 크기 16 → 32는 0.7% 줄었을 뿐이다(순위 동일). 그래서 정확도와 맞바꾸는 방법 중 하나인 입력 길이를 줄였다(`config/experiments/t1-asof-rr384.yaml`, `max_length: 384`). 표본으로 센 쌍 2,888개 중 512토큰을 넘는 것은 394개였다.
+
+| | 1위 정답 | 상위 10 안 | MRR@10 | 지연 p50 |
+|---|---:|---:|---:|---:|
+| dev 512 (t1-asof) | 0.690 | 0.950 | 0.792 | 6.6 s |
+| dev 384 | 0.683 | 0.947 | 0.783 | 5.1 s |
+| test 512 (t1-asof) | 0.666 | 0.949 | 0.774 | 6.2 s |
+| test 384 | 0.657 | 0.941 | 0.766 | 5.2 s |
+
+- dev와 test 모두 전체 지표 차이는 95% 구간에 0이 들어가 "차이 불분명"이다. 지연은 dev −22%, test −16%다(test 끝 20분쯤은 공격 평가가 GPU를 같이 써서 덜 줄었을 수 있다).
+- **정의 문항은 분명히 나빠졌다.** test 정의 문항 55개의 상위 10 안이 0.945 → 0.855(−0.091, [−0.164, −0.018])다. 정의 조문(제2조 등)은 길어서, 찾는 용어가 384토큰 뒤에 있으면 잘린다. test에서 상위 10 밖으로 밀려난 문항은 6개, 들어온 문항은 1개다.
+- 그래도 기본 검색을 384로 바꿨다(서버, `agent ask`, 공격 평가의 기본 `--retriever-config`). 질문 하나에 1초가 줄고 전체 정확도 차이는 재지 못할 만큼 작다는 판단이다. 정의 질문이 중요한 쓰임이면 512(`t1-asof.yaml`)로 되돌리면 된다.
+
 ## 남은 문제
 
 - **재정렬은 상위 30 밖을 구하지 못한다.** recall@20 0.869, 상위 30 밖 정답은 1단계 검색의 문제로 남는다.
@@ -153,6 +168,7 @@ test에서도 recall@1이 0.443 → 0.221(가중 0.1), 0.110(가중 0.5)으로 �
 pip install -e ".[dev,embed]"        # sentence-transformers(CrossEncoder) 포함
 ollama pull qwen3.5:4b               # Q1·Q2만
 proviso eval --config config/experiments/rerank30.yaml --split test
+proviso eval --config config/experiments/t1-asof-rr384.yaml --split test   # 재정렬 입력 384토큰(기본 검색)
 proviso eval --config config/experiments/rerank30-route.yaml --split test
 proviso eval --config config/experiments/q1-rewrite-pp0.yaml --split test
 proviso eval --config config/experiments/q2-hyde-pp0.yaml --split test

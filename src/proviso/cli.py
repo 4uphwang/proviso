@@ -433,7 +433,7 @@ def main(argv: list[str] | None = None) -> int:
     aga = ag_sub.add_parser("ask", help="질문 하나에 답하고 단계별 기록을 남긴다")
     aga.add_argument("question")
     aga.add_argument("--model", default=None, help="기본: 오픈라우터 DeepSeek V4 Flash, 키가 없으면 qwen3.5:4b")
-    aga.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
+    aga.add_argument("--retriever-config", default="config/experiments/t1-asof-rr384.yaml")
     aga.add_argument("--no-seed", action="store_true", help="첫 검색도 모델에게 맡긴다")
     aga.set_defaults(func=_agent_ask)
 
@@ -442,8 +442,8 @@ def main(argv: list[str] | None = None) -> int:
     atk.add_argument("--split", choices=["dev", "test"], default="dev")
     atk.add_argument("--model", default="qwen3.5:4b")
     atk.add_argument("--max-tokens", type=int, default=500)
-    atk.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
-    atk.add_argument("--scope", default="", help="범위 제한: prompt(시스템 지시), code(답의 코드 블록 지움), 둘 다면 prompt,code")
+    atk.add_argument("--retriever-config", default="config/experiments/t1-asof-rr384.yaml")
+    atk.add_argument("--scope", default="", help="범위 제한: prompt(시스템 지시), code(답의 코드 블록 지움), norm(글자 정리), verify(열어 본 조문 인용), judge(답 내보내기 전 범위 검사). 쉼표로 여럿")
     atk.add_argument("--workers", type=int, default=1, help="동시에 돌릴 문항 수(API 모델일 때)")
     atk.add_argument("--shield", action="store_true", help="11장 방어(개인정보 가림, 지시 바꾸기·없는 조문 거름, 지시문 유출 검사)")
     atk.set_defaults(func=_agent_attack)
@@ -468,7 +468,7 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=8000)
     sv.add_argument("--model", help="기본: agent ask와 같다(DeepSeek V4 Flash, 키가 없으면 4b)")
-    sv.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
+    sv.add_argument("--retriever-config", default="config/experiments/t1-asof-rr384.yaml")
     sv.set_defaults(func=_serve)
 
     ot = sub.add_parser("otel", help="기록을 OpenTelemetry(OTLP)로 내보낸다(15장). pip install -e '.[otel]'")

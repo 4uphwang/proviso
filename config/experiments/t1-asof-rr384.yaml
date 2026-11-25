@@ -1,0 +1,24 @@
+# 재정렬 입력 길이 512 -> 384(속도 시험). 나머지는 t1-asof와 같다.
+# 기준일이 없는 문항은 현행 색인 그대로라 결과가 같아야 한다.
+name: t1-asof-rr384
+retriever:
+  type: rerank
+  params:
+    index: c3c1-bge-m3-all   # 재정렬이 읽을 본문: 모든 본문 기간(현행 본문도 들어 있다)
+    model: BAAI/bge-reranker-v2-m3
+    top_n: 30
+    max_length: 384
+    inner:
+      type: rrf
+      expand_aliases: true
+      params:
+        k_rrf: 60
+        depth: 100
+        parts:
+          dense: {type: dense, params: {index: c3c1-bge-m3, versions_index: c3c1-bge-m3-all}}
+          bm25: {type: bm25, params: {tokenizer: morph, header: true, as_of: "2026-11-20", versions: true}}
+evalset: evalset/retrieval.jsonl
+split: dev
+k: 20
+repeats: 1
+use_as_of: true

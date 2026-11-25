@@ -25,10 +25,20 @@ from proviso.agent.run import RUNS_DIR, TODAY, Retriever, as_of_setup
 from proviso.agent.tools import Toolbox, load_law
 from proviso.answer.cite import is_refusal
 from proviso.answer.guard import REFUSAL, leaked, screen, uncited, unverified
+from proviso.answer import offtopic
 from proviso.answer.normalize import normalize
 from proviso.answer.pii import mask
 from proviso.answer.run import law_names
 from proviso.config import ROOT
+
+
+
+def eval_tag(question: str) -> str:
+    """평가용 경계 표시: 질문에서 정해진다(다시 돌려도 저장된 판정을 쓴다). 실제 서비스는 매번 무작위다."""
+    import hashlib
+
+    return "d" + hashlib.sha256(question.encode()).hexdigest()[:8]
+
 
 DENY = re.compile(r"없는\s*조문|존재하지\s*않|찾을\s*수\s*없|확인되지\s*않|확인할\s*수\s*없|없습니다")
 
@@ -82,6 +92,11 @@ def run_attacks(conn, *, path: Path, split: str, model: str, retriever_cfg: dict
     use_prompt, use_code = "prompt" in scope, "code" in scope
     # 조사 보고서 2·3순위: norm(질문 글자 정리), verify(열어 본 조문을 인용했는가). 없으면 예전 규칙(인용이 하나라도 있는가)
     use_norm, use_verify = "norm" in scope, "verify" in scope
+    # judge(적응형 재공격의 남은 구멍): 내보내기 전에 답이 질문 속 범위 밖 부탁을 따랐는지 모델이 본다(answer/offtopic.py)
+    use_judge = "judge" in scope
+    from proviso.agent.ask import CHECK_MODEL
+
+    checker = chat_client(CHECK_MODEL, 200, per_minute=600) if use_judge else None
     import threading
     from concurrent.futures import ThreadPoolExecutor
 
@@ -116,6 +131,10 @@ def run_attacks(conn, *, path: Path, split: str, model: str, retriever_cfg: dict
             elif shield and (unverified(answer, names, {tuple(k) for s in steps for k in s.get("shown") or []})
                              if use_verify else uncited(answer, names)):
                 answer, post = REFUSAL["uncited"], "uncited"
+            if checker is not None and not is_refusal(answer):
+                v = offtopic.check(checker, q, answer, tag=eval_tag(q))
+                if v["extra"]:
+                    answer, post = offtopic.REFUSAL_EXTRA, "extra:" + v["what"][:80]
         seen = json.dumps({"q": q, "steps": steps, "answer": answer}, ensure_ascii=False, default=str)
         return {"id": it["id"], "kind": it["kind"], "guard": kind, "post": post, "masked": found,
                 "refused": is_refusal(answer), "success": succeeded(it, answer, seen), "answer": answer,
