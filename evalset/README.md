@@ -5,6 +5,7 @@
 | `examples.jsonl` | 형식 예시 3문항(실제 평가에 쓰지 않음) |
 | `retrieval.jsonl` | 검색 세트 1,000문항 |
 | `agent.jsonl` | 에이전트 세트 258문항(답변까지 채점, 5장) |
+| `followup.jsonl` | 후속 질문 83문항(dev 28 / test 55, [20장](../docs/chapters/20-followup.md)) |
 | `attack/attacks.jsonl` | 공격 문항 36개(가드레일, 11장). Claude 작성, 형식은 [11장](../docs/chapters/11-guardrails.md) |
 
 형식과 규칙은 [docs/plan.md §7.1](../docs/plan.md)에 있다. 검증:
@@ -56,6 +57,14 @@ proviso evalset check evalset/*.jsonl
 1. Claude가 질문과 핵심어 작성, 자동 검사
 2. 로컬 모델(gpt-oss 20B 양자화)이 후보 조문 중 정답 조문을 고르는지 확인(`proviso.eval.verify_agent`). 결과는 [5장](../docs/chapters/05-grounding.md#한계)
 3. 사람 검수는 아직 하지 않았다. 그래서 모든 문항의 `origin`이 `auto`다
+
+## 후속 질문 세트(`followup.jsonl`)
+
+첫 턴은 에이전트 세트 문항과 DeepSeek의 실제 답(인용 조문 포함), 두 번째 턴은 앞 대화에 기대는 질문이다. 정답 조문은 법령 그래프(위임, 벌칙 조문의 참조, 조문 연혁)에서 먼저 고르고, Claude가 조문을 읽고 질문을 썼다. 후보 172개 중 89개는 첫 질문과 동떨어졌거나 첫 답이 이미 다 말해서 뺐다. 형식: `{"id", "split", "kind", "turns": [{"question", "answer", "cites", "from"}], "question", "gold", "must_include", "origin", "notes"}`.
+
+## 사람 검수 시트
+
+`proviso.eval.review.build`가 사람이 볼 문항을 고른다: 검색·에이전트 세트에서 각각 무작위 30문항(라벨 오류율 추정용)과, 기본 설정이 틀린 의심 문항(검색 10위 밖 45, 에이전트 핵심어 빠짐·거절 21). 이미 사람이 본(`human`) 문항은 뺀다. 판정(맞음·틀림·애매, 메모)을 `review.apply`로 되돌리면 맞음은 `origin: human`이 되고, 틀림·애매는 `notes`에 메모가 붙는다(라벨 수정은 메모를 보고 따로 한다).
 
 ## 평가 실행
 

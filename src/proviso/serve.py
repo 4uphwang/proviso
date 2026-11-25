@@ -1,8 +1,12 @@
 """proviso 서버(16장). 검색·재정렬 모델과 법령을 한 번만 불러 두고 HTTP로 질문을 받는다. pip install -e '.[serve]'
 
 proviso serve --port 8000
-- POST /ask           {"question": "...", "model": 선택} → 답, 인용, trace_id, 실제로 답한 모델, 걸린 초
-- GET  /ask/stream?q= 진행 상황을 SSE로 흘려보낸다(검색 → 조문 열기 → 모델 → 답). 토큰 단위가 아니라 단계 단위다
+- POST /ask           {"question": "...", "model": 선택, "conversation_id": 선택} → 답, 인용, trace_id, 실제로 답한 모델, 걸린 초,
+                      conversation_id. 같은 conversation_id로 다시 물으면 후속 질문으로 본다(앞 대화를 보고 질문을 고쳐 쓴다)
+- GET  /ask/stream?q=&conversation_id= 진행 상황을 SSE로 흘려보낸다(검색 → 조문 열기 → 모델 → 답). 토큰 단위가 아니라 단계 단위다
+
+앞 대화는 서버가 메모리에 들고 있다(최근 대화 200개, 대화마다 최근 턴 몇 개). 클라이언트가 보낸 '앞 답'을 믿지 않으려고
+대화 기록을 요청에 싣지 않고 id로만 받는다. 서버를 다시 띄우면 대화는 사라진다.
 - GET  /health        모델이 올라와 있는지, DB가 붙는지
 - GET  /trace/{id}    기록 하나(proviso trace와 같은 내용, JSON)
 
@@ -15,8 +19,10 @@ from __future__ import annotations
 import json
 import os
 import queue
+import secrets
 import threading
 import time
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import Any
@@ -29,6 +35,10 @@ from pydantic import BaseModel, Field
 class AskIn(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     model: str | None = None
+    conversation_id: str | None = Field(default=None, max_length=64)
+
+
+MAX_CONVERSATIONS = 200
 
 
 class State:
@@ -39,6 +49,26 @@ class State:
         self.started = time.time()
         self.warm_seconds: float | None = None
         self.served = 0
+        self.conversations: OrderedDict[str, list] = OrderedDict()
+
+    def history(self, cid: str | None) -> tuple[str, list]:
+        """(대화 id, 앞 턴들). id가 없거나 모르는 id면 새 대화를 연다."""
+        if cid and cid in self.conversations:
+            self.conversations.move_to_end(cid)
+            return cid, list(self.conversations[cid])
+        cid = secrets.token_urlsafe(12)
+        self.conversations[cid] = []
+        while len(self.conversations) > MAX_CONVERSATIONS:
+            self.conversations.popitem(last=False)
+        return cid, []
+
+    def remember(self, cid: str, a) -> None:
+        """답을 대화에 더한다. 모델에 연결하지 못한 턴은 남기지 않는다."""
+        from proviso.agent.ask import to_turn
+        from proviso.agent.followup import MAX_TURNS
+
+        if cid in self.conversations and a.kind != "unavailable":
+            self.conversations[cid] = (self.conversations[cid] + [to_turn(a)])[-MAX_TURNS:]
 
 
 def _step_event(s: dict) -> dict:
@@ -87,13 +117,15 @@ def create_app(make_asker, *, warm: bool = True) -> FastAPI:
     @app.post("/ask")
     def ask(body: AskIn, background: BackgroundTasks) -> dict[str, Any]:
         with st.lock:
-            a = st.asker.answer(body.question, model=body.model)
+            cid, history = st.history(body.conversation_id)
+            a = st.asker.answer(body.question, model=body.model, history=history)
+            st.remember(cid, a)
             st.served += 1
         background.add_task(_export, a.trace_id)
-        return asdict(a)
+        return {**asdict(a), "conversation_id": cid}
 
     @app.get("/ask/stream")
-    def ask_stream(q: str, model: str | None = None) -> StreamingResponse:
+    def ask_stream(q: str, model: str | None = None, conversation_id: str | None = None) -> StreamingResponse:
         if not q.strip():
             raise HTTPException(422, "질문이 비어 있음")
         events: queue.Queue = queue.Queue()
@@ -101,9 +133,11 @@ def create_app(make_asker, *, warm: bool = True) -> FastAPI:
         def work():
             with st.lock:
                 try:
-                    a = st.asker.answer(q, model=model, on_step=lambda s: events.put(_step_event(s)))
+                    cid, history = st.history(conversation_id)
+                    a = st.asker.answer(q, model=model, on_step=lambda s: events.put(_step_event(s)), history=history)
+                    st.remember(cid, a)
                     st.served += 1
-                    events.put({"type": "answer", **asdict(a)})
+                    events.put({"type": "answer", **asdict(a), "conversation_id": cid})
                     _export(a.trace_id)
                 except Exception as e:  # 연결을 열어 둔 채 멈추지 않게 오류도 사건으로 보낸다
                     events.put({"type": "error", "error": str(e)[:200]})

@@ -27,6 +27,8 @@ ASK_MAX_TOKENS = 1500  # 9장: API 모델은 500이면 답이 잘린다
 # 14장: 기본 모델이 (재시도까지) 실패하면 다른 회사 모델, 그다음 로컬 4b로 답한다. 순서는 9·13장 결과(거절 정확도, 충실도)다.
 ASK_FALLBACKS = ["openrouter:z-ai/glm-5.3-flash@low", DEFAULT_MODEL]
 CHECK_MODEL = ASK_MODEL  # 범위 검사기: 질문당 한 번 더, 약 0.0003달러
+REWRITE_MODEL = ASK_MODEL  # 후속 질문 다시 쓰기
+FOLLOWUP = "rewrite"
 UNAVAILABLE = "지금은 답변 모델에 연결하지 못해 답할 수 없습니다. 잠시 뒤 다시 물어 주세요."
 
 
@@ -64,6 +66,15 @@ class Answer:
     model: str = ""            # 실제로 답한 모델(대체가 답했으면 그 모델)
     fallback_from: str = ""
     seconds: float = 0.0       # 질문을 받아 답을 돌려줄 때까지(벽시계)
+    asked: str = ""            # 실제로 처리한 질문(후속 질문이면 앞 대화를 보고 고쳐 쓴 것)
+
+
+def to_turn(a: Answer) -> "Turn":
+    """다음 후속 질문에 넘길 앞 대화 한 턴."""
+    from proviso.agent.followup import Turn
+
+    cites = list(dict.fromkeys(f"{c['doc']} {c['article']}" for c in a.cites if c.get("doc") and c.get("status") == "shown"))
+    return Turn(a.asked, a.text, cites)
 
 
 class Asker:
@@ -84,6 +95,7 @@ class Asker:
         self.hist = TextHistory(conn)
         self.laws_at: dict = {}
         self._checker = None
+        self._rewriter = None
 
     def _offtopic(self, question: str, answer: str) -> str:
         """범위 검사(answer/offtopic.py). 걸리면 '해 준 다른 일', 아니면 빈 글. 오픈라우터 키가 없으면 건너뛴다.
@@ -106,6 +118,19 @@ class Asker:
             return "검사기 연결 실패"
         return (v["what"] or "범위 밖 요청") if v["extra"] else ""
 
+    def _standalone(self, question: str, history: list, strategy: str) -> tuple[str, dict]:
+        """후속 질문 다시 쓰기(agent/followup.py). 키가 없으면 앞 질문을 붙이는 방법으로 대신한다."""
+        from proviso.agent.followup import standalone
+
+        if strategy == "rewrite" and self._rewriter is None:
+            try:
+                self._rewriter = chat_client(REWRITE_MODEL, 300)
+            except RuntimeError:
+                self._rewriter = False
+        if strategy == "rewrite" and not self._rewriter:
+            strategy = "concat"
+        return standalone(question, history, strategy, self._rewriter)
+
     def warm(self) -> float:
         """검색·재정렬 모델을 올리고 걸린 초를 돌려준다."""
         t0 = time.perf_counter()
@@ -113,7 +138,9 @@ class Asker:
         return time.perf_counter() - t0
 
     def answer(self, question: str, *, model: str | None = None, seed_search: bool = True,
-               on_step: Callable[[dict], None] | None = None) -> Answer:
+               on_step: Callable[[dict], None] | None = None, history: list | None = None,
+               followup: str = FOLLOWUP) -> Answer:
+        """history: 앞 대화(followup.Turn 목록, to_turn으로 만든다). 있으면 후속 질문을 혼자 읽히는 질문으로 고쳐 쓴 뒤 답한다."""
         from proviso.answer.guard import REFUSAL, leaked, screen, strip_code, unverified
         from proviso.answer.normalize import normalize
         from proviso.answer.offtopic import REFUSAL_EXTRA
@@ -124,7 +151,14 @@ class Asker:
         question, _ = mask(normalize(question))  # 11장: 개인정보는 모델과 기록에 넘기기 전에 가린다(원문은 저장하지 않는다)
         kind = screen(question, attacks=True, names=self.names, known=self.known)  # 10·11장: 모델 전에 거른다
         if kind:
-            return Answer(present(REFUSAL[kind], []), refused=True, kind="guard", seconds=time.perf_counter() - t0)
+            return Answer(present(REFUSAL[kind], []), refused=True, kind="guard", seconds=time.perf_counter() - t0, asked=question)
+        said, rewrite = question, {}
+        if history:  # 후속 질문: 고쳐 쓴 질문도 같은 검사를 다시 거친다(앞 대화에서 끌어온 말이 있을 수 있다)
+            question, rewrite = self._standalone(said, history, followup)
+            question, _ = mask(normalize(question))
+            kind = screen(question, attacks=True, names=self.names, known=self.known)
+            if kind:
+                return Answer(present(REFUSAL[kind], []), refused=True, kind="guard", seconds=time.perf_counter() - t0, asked=question)
         when, law_at, box, system, note = as_of_setup(self.conn, question, self.names, self.retr, self.laws_at)
         llm = chain(model)
         try:
@@ -137,7 +171,7 @@ class Asker:
         elif unverified(tr.answer, self.names, set(tr.shown)):  # 이번에 열어 본 조문을 하나도 인용하지 않은 답은 내보내지 않는다
             tr.answer = REFUSAL["uncited"]
         tr.answer, _ = strip_code(tr.answer)  # 법령 답에는 코드가 필요 없다(범위 제한)
-        extra = self._offtopic(question, tr.answer)
+        extra = self._offtopic(question if said == question else f"{said}\n(앞 대화를 보고 고쳐 쓴 질문: {question})", tr.answer)
         if extra:  # 답이 질문 속 범위 밖 부탁(가사, 지정 문구, 수식 등)을 따랐으면 내보내지 않는다
             tr.answer = REFUSAL_EXTRA
         law = self.law
@@ -145,6 +179,7 @@ class Asker:
         tid = save(self.conn, tr, question=question, answer=tr.answer, refused=r["refused"],
                    config={"model": model, "prompt_version": prompt_version(), "fallbacks": [c.model for c in llm.clients[1:]], "llm_events": llm.events,
                            "seed_search": seed_search, "retriever": self.retriever_cfg,
+                           **({"followup": {**rewrite, "said": said, "turns": len(history)}} if history else {}),
                            "as_of": str(when) if when else None}, snapshot_id=latest_snapshot(self.conn))
         note = year_notice(question, when, r["cites"], law_at or law, self.hist)
         text = present(tr.answer, r["cites"])
@@ -153,7 +188,7 @@ class Asker:
         used = [s for s in tr.steps if s.get("llm")]
         last = used[-1] if used else {}
         return Answer(text, tid, r["refused"], "answer", r["cites"], last.get("model") or llm.clients[0].model,
-                      last.get("fallback_from", ""), time.perf_counter() - t0)
+                      last.get("fallback_from", ""), time.perf_counter() - t0, question)
 
 
 def ask(conn, question: str, *, retriever_cfg: dict, model: str | None = None, seed_search: bool = True) -> tuple[str, str]:

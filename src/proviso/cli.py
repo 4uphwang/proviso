@@ -288,6 +288,51 @@ def _agent_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def _agent_chat(args: argparse.Namespace) -> int:
+    """대화형: 한 줄에 질문 하나. 앞 대화를 보고 후속 질문을 고쳐 쓴다. 빈 줄이나 Ctrl-D로 끝낸다."""
+    import yaml
+
+    from proviso.agent.ask import Asker, to_turn
+    from proviso.agent.followup import MAX_TURNS
+    from proviso.db.connect import connect
+
+    retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
+    with connect() as conn:
+        asker, history = Asker(conn, retriever_cfg=retr, model=args.model), []
+        while True:
+            try:
+                q = input("\n질문> ").strip()
+            except EOFError:
+                break
+            if not q:
+                break
+            a = asker.answer(q, history=history, followup=args.followup)
+            if history and a.asked != q:
+                print(f"(이렇게 알아들었어요: {a.asked})")
+            print(a.text)
+            if a.kind != "unavailable":
+                history = (history + [to_turn(a)])[-MAX_TURNS:]
+    return 0
+
+
+def _agent_followup(args: argparse.Namespace) -> int:
+    import yaml
+
+    from proviso.agent.ask import REWRITE_MODEL
+    from proviso.db.connect import connect
+    from proviso.eval.followup_run import run, table
+
+    retr = yaml.safe_load(open(args.retriever_config, encoding="utf-8"))["retriever"]
+    with connect() as conn:
+        path = run(conn, path=Path(args.evalset), split=args.split, strategies=args.strategies.split(","),
+                   retriever_cfg=retr, model=args.model or REWRITE_MODEL)
+    import json
+
+    print(table(json.loads(path.read_text(encoding="utf-8"))["summary"]))
+    print(f"결과: {path}")
+    return 0
+
+
 def _agent_attack(args: argparse.Namespace) -> int:
     import yaml
 
@@ -436,6 +481,18 @@ def main(argv: list[str] | None = None) -> int:
     aga.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
     aga.add_argument("--no-seed", action="store_true", help="첫 검색도 모델에게 맡긴다")
     aga.set_defaults(func=_agent_ask)
+    agc = ag_sub.add_parser("chat", help="대화형으로 묻는다(후속 질문은 앞 대화를 보고 고쳐 쓴다)")
+    agc.add_argument("--model", default=None)
+    agc.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
+    agc.add_argument("--followup", default="rewrite", choices=["none", "concat", "rewrite"])
+    agc.set_defaults(func=_agent_chat)
+    agf = ag_sub.add_parser("followup", help="후속 질문 평가: 전략별로 고쳐 쓴 질문의 검색 정답률")
+    agf.add_argument("--evalset", default="evalset/followup.jsonl")
+    agf.add_argument("--split", default="dev", choices=["dev", "test", "all"])
+    agf.add_argument("--strategies", default="none,concat,rewrite")
+    agf.add_argument("--model", default=None, help="다시 쓰기 모델. 기본: agent ask와 같다")
+    agf.add_argument("--retriever-config", default="config/experiments/t1-asof.yaml")
+    agf.set_defaults(func=_agent_followup)
 
     atk = ag_sub.add_parser("attack", help="공격 문항으로 가드레일을 잰다(11장)")
     atk.add_argument("--evalset", default="evalset/attack/attacks.jsonl")
