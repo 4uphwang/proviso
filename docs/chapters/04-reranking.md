@@ -153,7 +153,7 @@ test에서도 recall@1이 0.443 → 0.221(가중 0.1), 0.110(가중 0.5)으로 �
 
 - dev와 test 모두 전체 지표 차이는 95% 구간에 0이 들어가 "차이 불분명"이다. 지연은 dev −22%, test −16%다(test 끝 20분쯤은 공격 평가가 GPU를 같이 써서 덜 줄었을 수 있다).
 - **정의 문항은 분명히 나빠졌다.** test 정의 문항 55개의 상위 10 안이 0.945 → 0.855(−0.091, [−0.164, −0.018])다. 정의 조문(제2조 등)은 길어서, 찾는 용어가 384토큰 뒤에 있으면 잘린다. test에서 상위 10 밖으로 밀려난 문항은 6개, 들어온 문항은 1개다.
-- 그래도 기본 검색을 384로 바꿨다(서버, `agent ask`, 공격 평가의 기본 `--retriever-config`). 질문 하나에 1초가 줄고 전체 정확도 차이는 재지 못할 만큼 작다는 판단이다. 정의 질문이 중요한 쓰임이면 512(`t1-asof.yaml`)로 되돌리면 된다.
+- 한때 기본 검색을 384로 바꿨다가 512(`t1-asof.yaml`)로 되돌렸다. 질문 하나에 1초가 주는 것보다, 법령 챗봇에서 자주 나올 정의 질문을 10문항 중 1개꼴로 놓치는 손해가 크다고 봤다. 되돌린 뒤 다시 측정하지는 않았다(512 숫자는 위 표의 t1-asof 그대로다). 384 설정 파일은 비교용으로 남겨 둔다.
 
 ## 남은 문제
 
@@ -168,7 +168,7 @@ test에서도 recall@1이 0.443 → 0.221(가중 0.1), 0.110(가중 0.5)으로 �
 pip install -e ".[dev,embed]"        # sentence-transformers(CrossEncoder) 포함
 ollama pull qwen3.5:4b               # Q1·Q2만
 proviso eval --config config/experiments/rerank30.yaml --split test
-proviso eval --config config/experiments/t1-asof-rr384.yaml --split test   # 재정렬 입력 384토큰(기본 검색)
+proviso eval --config config/experiments/t1-asof-rr384.yaml --split test   # 재정렬 입력 384토큰(시도, 기본 아님)
 proviso eval --config config/experiments/rerank30-route.yaml --split test
 proviso eval --config config/experiments/q1-rewrite-pp0.yaml --split test
 proviso eval --config config/experiments/q2-hyde-pp0.yaml --split test
